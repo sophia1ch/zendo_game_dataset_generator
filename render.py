@@ -1,14 +1,19 @@
 import bpy, _cycles
-import mathutils
+import mathutils, platform
 import os
 import random
 
 bpy.data.scenes[0].render.engine = "CYCLES"
 
 # Set the device_type
-bpy.context.preferences.addons[
-    "cycles"
-].preferences.compute_device_type = "METAL" # or "OPTIX"
+system = platform.system()
+
+if system == "Darwin":  # macOS
+    bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "METAL"
+elif system in ["Windows", "Linux"]:  # Windows or Linux
+    bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "OPTIX"
+else:
+    print("Unsupported OS for GPU rendering configuration")
 
 # Set the device and feature set
 bpy.context.scene.cycles.device = "GPU"
@@ -25,7 +30,7 @@ pyramid_1 = bpy.data.objects['Cone-S']
 new_pyramid = pyramid_1.copy()
 bpy.context.collection.objects.link(new_pyramid)
 
-vec = mathutils.Vector((1,0,0))
+vec = mathutils.Vector((1, 0, 0))
 
 new_pyramid.location = new_pyramid.location + vec
 
