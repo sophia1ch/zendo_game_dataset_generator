@@ -1,5 +1,5 @@
 import bpy, _cycles
-
+import mathutils
 import os
 import random
 
@@ -25,9 +25,12 @@ pyramid_1 = bpy.data.objects['Cone-S']
 new_pyramid = pyramid_1.copy()
 bpy.context.collection.objects.link(new_pyramid)
 
+vec = mathutils.Vector((1,0,0))
 
+new_pyramid.location = new_pyramid.location + vec
 
-new_pyramid.location = new_pyramid.location
+new_pyramid.data.materials[0].node_tree.nodes['Principled BSDF'].inputs["Base Color"].default_value = (0, 1, 1, 1)
+
 
 #pyramid_1.hide_render = True
 
