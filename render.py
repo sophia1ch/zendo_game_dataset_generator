@@ -1,5 +1,6 @@
 import bpy, _cycles
 import mathutils, platform
+from pathlib import Path
 import os
 import random
 
@@ -36,12 +37,12 @@ new_pyramid.location = new_pyramid.location + vec
 
 new_pyramid.data.materials[0].node_tree.nodes['Principled BSDF'].inputs["Base Color"].default_value = (0, 1, 1, 1)
 
-
 #pyramid_1.hide_render = True
 
 
-
 bpy.ops.render.render(True)
-img_path = f"output/test.jpg"
+img_dirpath = Path(bpy.path.abspath("//output"))
+img_dirpath.mkdir(exist_ok=True)
+img_path = img_dirpath.joinpath("test.jpg")
 rendered_image = bpy.data.images["Render Result"]
-rendered_image.save_render(filepath=img_path)
+rendered_image.save_render(filepath=str(img_path))
