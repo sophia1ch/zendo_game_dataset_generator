@@ -1,8 +1,7 @@
 {
   "shapes": {
-    "cube": "SmoothCube_v2",
-    "sphere": "Sphere",
-    "cylinder": "SmoothCylinder"
+    "disc": "Disc",
+    "pyramid": "Pyramid"
   },
   "colors": {
     "gray": [87, 87, 87],
@@ -14,12 +13,9 @@
     "cyan": [41, 208, 208],
     "yellow": [255, 238, 51]
   },
-  "materials": {
-    "rubber": "Rubber",
-    "metal": "MyMetal"
-  },
   "sizes": {
     "large": 0.7,
+    "middle": 0.5,
     "small": 0.35
   }
 }
