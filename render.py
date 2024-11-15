@@ -115,7 +115,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config-file", type=str, required=True,
+    parser.add_argument("-c", "--config-file", type=str, default="configs/simple_config.yml",
                         help='config file for rendering')
     conf = parser.parse_args()
 
