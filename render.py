@@ -22,19 +22,6 @@ def main(args):
     # Initialize render settings
     #######################################################
 
-    # Set Cycles as the render engine
-    # TODO: change the blender render settings for better images
-    render_args = bpy.context.scene.render
-    render_args.engine = "CYCLES"
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    # TODO: make the following line work!!
-    render_args.filepath = os.path.join(output_dir, args.output_image_file)
-    render_args.resolution_x = args.width
-    render_args.resolution_y = args.height
-    render_args.resolution_percentage = 100
-
-
     # Detect system OS and configure the best rendering settings
     system = platform.system()
     preferences = bpy.context.preferences.addons["cycles"].preferences
@@ -77,16 +64,6 @@ def main(args):
     for device in preferences.devices:
         print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
 
-    # Some CYCLES-specific stuff
-    # TODO: change the blender render settings for better images
-    bpy.data.worlds['World'].cycles.sample_as_light = True
-    bpy.context.scene.cycles.blur_glossy = 2.0
-    bpy.context.scene.cycles.samples = args.render_num_samples
-    bpy.context.scene.cycles.transparent_min_bounces = args.render_min_bounces
-    bpy.context.scene.cycles.transparent_max_bounces = args.render_max_bounces
-    bpy.context.scene.cycles.tile_x = args.render_tile_size
-    bpy.context.scene.cycles.tile_y = args.render_tile_size
-
 
     #######################################################
     # Main
@@ -105,10 +82,23 @@ def main(args):
     # Render
     #######################################################
 
-    bpy.ops.render.render(True)
-    # TODO: because the render_args.file_path line isn't working, we need to save the rendered file manually...
-    rendered_image = bpy.data.images["Render Result"]
-    rendered_image.save_render(filepath=os.path.join(output_dir, args.output_image_file))
+    # Get the directory of the executing Python script
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # Set rendering properties
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.render.filepath = os.path.join(script_dir, args.output_dir, args.output_image_file)
+    bpy.context.scene.render.image_settings.file_format = 'PNG'
+    bpy.context.scene.cycles.samples = int(args.render_num_samples)
+    bpy.context.scene.render.resolution_x = args.width
+    bpy.context.scene.render.resolution_y = args.height
+    bpy.context.scene.render.resolution_percentage = 100
+
+    print("Saving output image to:", bpy.context.scene.render.filepath)
+
+    # Render image and write to disk instead of only keeping in memory
+    bpy.ops.render.render(write_still=True)
+
     if args.save_blendfile:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.output_dir, "test.blend"))
 
