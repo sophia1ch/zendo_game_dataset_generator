@@ -17,6 +17,22 @@ def main(args):
     if script_dir not in sys.path:
         sys.path.append(script_dir)
 
+    #######################################################
+    # Main
+    #######################################################
+
+    bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
+    object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
+
+    pyramids = []
+    for i in range(3):
+        pyr = blender_obj(args, name=object_shapes["pyramid"])
+        pyr.set_random_position()
+        # TODO: set color is working but not in the right way, look at blender_obj class
+        pyr.set_color(random.choice(list(object_colors.values())))
+        pyramids.append(pyr)
+    disc = blender_obj(args, name=object_shapes["disc"])
+    disc.set_to_ground()
 
     #######################################################
     # Initialize render settings
@@ -63,20 +79,6 @@ def main(args):
     print(f"Render device set to: {bpy.context.scene.cycles.device}")
     for device in preferences.devices:
         print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
-
-
-    #######################################################
-    # Main
-    #######################################################
-
-    bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
-    object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
-
-    pyramid = blender_obj(args, name=object_shapes["pyramid"])
-    pyramid.move(0, 0, 2)
-    # TODO: set color is working but not in the right way, look at blender_obj class
-    pyramid.set_color(object_colors["green"])
-
 
     #######################################################
     # Render
