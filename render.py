@@ -28,7 +28,6 @@ def main(args):
     for i in range(3):
         pyr = blender_obj(args, name=object_shapes["pyramid"])
         pyr.set_random_position()
-        # TODO: set color is working but not in the right way, look at blender_obj class
         pyr.set_color(random.choice(list(object_colors.values())))
         pyramids.append(pyr)
     disc = blender_obj(args, name=object_shapes["disc"])

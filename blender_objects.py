@@ -93,11 +93,32 @@ class blender_obj:
         self.obj.location = mathutils.Vector([rnd_x, rnd_y, self.obj.dimensions[2]/2])
 
     def set_color(self, color):
-        r, g, b, t = color
-        # TODO: setting the color is not working for different materials if the color is set with different shaders?
-        bsdf = self.material.node_tree.nodes.get("Glass BSDF")
-        if bsdf:
-            bsdf.inputs["Color"].default_value = (r, g, b, t)
+        r, g, b, a = color
+        # Check if the material exists and uses nodes
+        if not self.material:
+            print("No material found.")
+            return
+
+        if not self.material.use_nodes:
+            print(f"Material '{self.material.name}' does not use nodes.")
+            return
+
+        nodes = self.material.node_tree.nodes
+
+        # Look for an RGB node labeled "Color"
+        color_node = None
+        for node in nodes:
+            if node.type == 'RGB' and (node.label == "Color" or node.name == "Color"):
+                color_node = node
+                break
+
+        if not color_node:
+            print("RGB node labeled 'Color' not found.")
+            return
+
+        # Set the color
+        color_node.outputs[0].default_value = (r, g, b, a)
+        print(f"Setting color to: {r:.2f}, {g:.2f}, {b:.2f}, {a:.2f}")
 
     def hide(self):
         self.obj.hide_render = True
