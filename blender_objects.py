@@ -4,50 +4,11 @@ import mathutils
 import numpy as np
 
 
-def check_collision(obj_name, obj_x, obj_y, dim_x, dim_y):
-    """
-    Checks if the given postion (x, y) collides with any blender object.
-    Assume a circle around the center of the objects with a radius of the maximum dimension (x, y).
-    The algo checks if the circles of two objects are colliding.
-    :param obj_name: name of the object to check
-    :param obj_x: x position of the object
-    :param obj_y: x position of the object
-    :param dim_x: dimension (width) of the object
-    :param dim_y: dimension (height) of the object
-    :return: True if collision and False if not
-    """
-    # Exclude Camera, Sun, Plane and the object itself
-    exclude_arr = ['Camera', 'Ground', 'Empty', 'Area', 'Lamp_Back', 'Lamp_Fill', 'Lamp_Key', obj_name]
-    obj_radius = max(dim_x, dim_y)
-
-    # Iterate blender objects
-    for obj_idx in range(len(bpy.data.objects)):
-        tmp_obj = bpy.data.objects[obj_idx]
-        if tmp_obj.name in exclude_arr:
-            continue
-        print(obj_name, obj_x, obj_y, tmp_obj)
-        # get pos
-        tmp_loc_x, tmp_loc_y = tmp_obj.location[:2]
-        tmp_radius = max(tmp_obj.dimensions[:2])
-
-        distance = math.sqrt((tmp_loc_x - obj_x) ** 2 + (tmp_loc_y - obj_y) ** 2)
-        if distance < (tmp_radius + obj_radius):
-            return True
-    return False
-
-
-def get_object_count(name):
-    count = 0
-    for obj in bpy.data.objects:
-        if obj.name.startswith(name):
-            count += 1
-    return count
-
-
 class blender_obj:
     def __init__(self, args, name):
         """
         Copy a blender object based on a given object in blender file
+        :param args: Given configuration arguments of the render file
         :param name: Name of the object in blender file
         """
         # Load object from file
@@ -58,6 +19,7 @@ class blender_obj:
         bpy.data.objects[name].name = self.name
         self.obj = bpy.data.objects[self.name]
         self.material = self.obj.data.materials[0]
+        self.scale_factor = 1.0
 
     def get_position(self):
         return self.obj.location
@@ -74,23 +36,11 @@ class blender_obj:
     def set_to_ground(self):
         """
         Sets the object on the ground due to origin is center of object
-        """
-        # TODO: consider scale of object if scale is implemented
-        _, _, dim_z = self.obj.dimensions
-        self.move(0, 0, dim_z/2)
-
-    def set_random_position(self):
-        """
-        Sets a new position on ground level if no collision is detected
         :return:
         """
-        # set random position with boundary of the ground-plane
-        # range given by base_scene of clevr project
-        rnd_x, rnd_y = np.random.uniform(low=-3, high=3, size=2)
-        while check_collision(self.name, rnd_x, rnd_y, self.obj.dimensions[0], self.obj.dimensions[1]):
-            rnd_x, rnd_y = np.random.uniform(low=-3, high=3, size=2)
-        # set new position and also set the object to ground level with height_of_obj/2
-        self.obj.location = mathutils.Vector([rnd_x, rnd_y, self.obj.dimensions[2]/2])
+        _, _, dim_z = self.obj.dimensions
+        x, y, _ = self.obj.location
+        self.set_position(x, y, (self.scale_factor * dim_z)/2)
 
     def set_color(self, color):
         r, g, b, a = color
@@ -126,6 +76,69 @@ class blender_obj:
     def show(self):
         self.obj.hide_render = False
 
-    def scale(self):
-        # TODO: implement
-        pass
+    def scale(self, scale_factor):
+        """
+        Scales the object according to the given scale_factor. This factor is stored as a class variable.
+        Due to simpler mathematical reason, we use this factor instead of the scale values of the "bpy.object".
+        :param scale_factor: float for scaling the object
+        """
+        if self.scale_factor != 1.0:
+            # If the object has already been scaled, scale it back to original size
+            self.obj.scale = mathutils.Vector(self.obj.scale) / self.scale_factor
+        # Afterwards scale with new factor
+        self.obj.scale = mathutils.Vector(self.obj.scale) * scale_factor
+        self.scale_factor = scale_factor
+
+
+################################################
+# Functions
+################################################
+
+
+def set_random_position(obj: blender_obj, obj_list: list[blender_obj]):
+    """
+    Sets a new position for a given object on ground level if no collision is detected
+    :return:
+    """
+    # set random position with boundary of the ground-plane
+    # range given by base_scene of clevr project
+    rnd_x, rnd_y = np.random.uniform(low=-3, high=3, size=2)
+    while check_collision(obj, rnd_x, rnd_y, obj_list):
+        rnd_x, rnd_y = np.random.uniform(low=-3, high=3, size=2)
+    # set new position and also set the object to ground level with height_of_obj/2
+    obj.set_position(rnd_x, rnd_y, 0)
+    obj.set_to_ground()
+
+
+def check_collision(obj: blender_obj, obj_x: float, obj_y: float, obj_list: list[blender_obj]):
+    """
+    Checks if the given postion (x, y) collides with any blender object in the given list of objects.
+    Assume a circle around the center of the objects with a radius of the maximum dimension (x, y).
+    The algo checks if the circles of two objects are colliding.
+    :param obj: the object to check
+    :param obj_x: x position of the object
+    :param obj_y: x position of the object
+    :param obj_list: list of all other objects of type blender_obj
+    :return: True if collision and False if not
+    """
+    obj_radius = (max(obj.get_dimensions()[:2]) * obj.scale_factor) / 2
+
+    # Iterate blender objects
+    for tmp_obj in obj_list:
+        if tmp_obj.name == obj.name:
+            continue
+        tmp_loc_x, tmp_loc_y, _ = tmp_obj.get_position()
+        tmp_radius = (max(tmp_obj.get_dimensions()[:2]) * tmp_obj.scale_factor) / 2
+
+        distance = math.sqrt((tmp_loc_x - obj_x) ** 2 + (tmp_loc_y - obj_y) ** 2)
+        if distance < (tmp_radius + obj_radius):
+            return True
+    return False
+
+
+def get_object_count(name):
+    count = 0
+    for obj in bpy.data.objects:
+        if obj.name.startswith(name):
+            count += 1
+    return count

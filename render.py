@@ -7,7 +7,7 @@ from argparse import Namespace
 import yaml
 import numpy as np
 import random
-from blender_objects import blender_obj, check_collision
+from blender_objects import blender_obj, check_collision, set_random_position
 import utils
 
 
@@ -24,14 +24,20 @@ def main(args):
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
     object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
 
-    pyramids = []
-    for i in range(3):
-        pyr = blender_obj(args, name=object_shapes["pyramid"])
-        pyr.set_random_position()
-        pyr.set_color(random.choice(list(object_colors.values())))
-        pyramids.append(pyr)
+    list_of_objects = []
+
     disc = blender_obj(args, name=object_shapes["disc"])
+    disc.set_color(object_colors["yellow"])
+    disc.scale(object_sizes["middle"])
     disc.set_to_ground()
+    list_of_objects.append(disc)
+
+    for i in range(10):
+        pyr = blender_obj(args, name=object_shapes["pyramid"])
+        pyr.scale(random.choice(list(object_sizes.values())))
+        set_random_position(pyr, list_of_objects)
+        pyr.set_color(random.choice(list(object_colors.values())))
+        list_of_objects.append(pyr)
 
     #######################################################
     # Initialize render settings

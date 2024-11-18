@@ -30,6 +30,8 @@ def read_properties_json(file_path):
     object_mapping = {}
     for k, v in properties['shapes'].items():
         object_mapping[k] = v
-    size_mapping = list(properties['sizes'].items())
+    size_mapping = {}
+    for k, v in properties['sizes'].items():
+        size_mapping[k] = v
 
     return object_mapping, color_name_to_rgba, size_mapping
