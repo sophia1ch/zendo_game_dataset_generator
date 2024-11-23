@@ -1,12 +1,12 @@
-base_scene_blendfile: 'data/base_scene.blend' # Base blender file on which all scenes are based;includes ground plane, lights, and camera.
+base_scene_blendfile: 'data/base_scene_new.blend' # Base blender file on which all scenes are based;includes ground plane, lights, and camera.
 properties_json: 'data/properties.json' # JSON file defining objects, materials, sizes, and colors.
 shape_dir: 'data/shapes' # Directory where .blend files for object models are stored
 output_dir: 'output' # The directory where output images will be stored. It will be created if it does not exist.
 output_image_file: 'test.png' # The file name with which the output images will be stored.
-save_blendfile: 0 # each generated image to be stored in the directory specified by the --output_blend_dir flag. These files are not saved by default because they take up ~5-10MB each.
-width: 320 # The width (in pixels) for the rendered images
-height: 240 # The height (in pixels) for the rendered images
-render_num_samples: 1024 # The number of samples to use when rendering. Larger values will result in nicer images but will cause rendering to take longer.
+save_blendfile: 1 # each generated image to be stored in the directory specified by the --output_blend_dir flag. These files are not saved by default because they take up ~5-10MB each.
+width: 640 # The width (in pixels) for the rendered images
+height: 480 # The height (in pixels) for the rendered images
+render_num_samples: 64 # The number of samples to use when rendering. Larger values will result in nicer images but will cause rendering to take longer.
 render_min_bounces: 8 # The minimum number of bounces to use for rendering.
 render_max_bounces: 8 # The maximum number of bounces to use for rendering.
 render_tile_size: 256 # The tile size to use for rendering.

@@ -29,7 +29,7 @@ def main(args):
     disc = blender_obj(args, name=object_shapes["disc"])
     disc.set_color(object_colors["yellow"])
     disc.scale(object_sizes["middle"])
-    disc.set_to_ground()
+    disc.set_pose(0.0, 0.0, 0.0, "side")
     list_of_objects.append(disc)
 
     for i in range(10):

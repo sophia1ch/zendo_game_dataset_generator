@@ -21,6 +21,8 @@ class blender_obj:
         self.material = self.obj.data.materials[0]
         self.scale_factor = 1.0
 
+        self.type = name
+
     def get_position(self):
         return self.obj.location
 
@@ -28,19 +30,43 @@ class blender_obj:
         return self.obj.dimensions
 
     def set_position(self, x, y, z):
-        self.obj.location = mathutils.Vector((x, y, z))
+        print("DEPRECATED: use set_pose")
+        #self.obj.location = mathutils.Vector((x, y, z))
 
     def move(self, x, y, z):
         self.obj.location = self.obj.location + mathutils.Vector((x, y, z))
+
+    def set_pose(self, x, y, rad_z, type):
+        rotation = mathutils.Quaternion((1.0, 0.0, 0.0), 0.0)
+        if type == "upright":
+            pass
+        elif type == "side":
+            side_angle = 110.0 if self.type == "Pyramid" else 90.0
+            rotation = mathutils.Quaternion((0.0, 0.0, 1.0), math.radians(45.0))
+            rotation = mathutils.Quaternion((1.0, 0.0, 0.0), math.radians(side_angle))@rotation
+        rotation = mathutils.Quaternion((0.0, 0.0, 1.0), rad_z)@rotation
+
+        self.obj.rotation_mode = "QUATERNION"
+        self.obj.rotation_quaternion = rotation
+
+        # Set to ground
+        self.obj.location = mathutils.Vector((0.0, 0.0, 0.0))
+        rotated_vertices = [rotation@(self.scale_factor*vertex.co) for vertex in self.obj.data.vertices]
+        bottom_p = min(rotated_vertices, key=lambda p: p.z)
+        #top_p = max(rotated_vertices, key=lambda p: p.z)
+        center_z = self.obj.location.z
+        self.obj.location = mathutils.Vector((x, y, center_z - bottom_p.z))
+
+    def get_ground_radius(self):
+        rotated_vertices = [self.obj.rotation_quaternion@(self.scale_factor*vertex.co) for vertex in self.obj.data.vertices]
+        return max([math.sqrt(p.x**2 + p.y**2) for p in rotated_vertices])
 
     def set_to_ground(self):
         """
         Sets the object on the ground due to origin is center of object
         :return:
         """
-        _, _, dim_z = self.obj.dimensions
-        x, y, _ = self.obj.location
-        self.set_position(x, y, (self.scale_factor * dim_z)/2)
+        print("DEPRECATED: use set_pose")
 
     def set_color(self, color):
         r, g, b, a = color
@@ -58,7 +84,7 @@ class blender_obj:
         # Look for an RGB node labeled "Color"
         color_node = None
         for node in nodes:
-            if node.type == 'RGB' and (node.label == "Color" or node.name == "Color"):
+            if node.type == 'RGB':# and (node.label == "Color" or node.name == "Color"):
                 color_node = node
                 break
 
@@ -102,12 +128,14 @@ def set_random_position(obj: blender_obj, obj_list: list[blender_obj]):
     """
     # set random position with boundary of the ground-plane
     # range given by base_scene of clevr project
-    rnd_x, rnd_y = np.random.uniform(low=-3, high=3, size=2)
-    while check_collision(obj, rnd_x, rnd_y, obj_list):
+    
+    keep_searching = True
+    while keep_searching:
         rnd_x, rnd_y = np.random.uniform(low=-3, high=3, size=2)
-    # set new position and also set the object to ground level with height_of_obj/2
-    obj.set_position(rnd_x, rnd_y, 0)
-    obj.set_to_ground()
+        pose_type = "upright" if np.random.uniform() > 0.8 else "side"
+        obj.set_pose(rnd_x, rnd_y, np.random.uniform(high=np.pi), pose_type)
+
+        keep_searching = check_collision(obj, rnd_x, rnd_y, obj_list)
 
 
 def check_collision(obj: blender_obj, obj_x: float, obj_y: float, obj_list: list[blender_obj]):
@@ -121,14 +149,14 @@ def check_collision(obj: blender_obj, obj_x: float, obj_y: float, obj_list: list
     :param obj_list: list of all other objects of type blender_obj
     :return: True if collision and False if not
     """
-    obj_radius = (max(obj.get_dimensions()[:2]) * obj.scale_factor) / 2
+    obj_radius = obj.get_ground_radius()#(max(obj.get_dimensions()[:2]) * obj.scale_factor) / 2
 
     # Iterate blender objects
     for tmp_obj in obj_list:
         if tmp_obj.name == obj.name:
             continue
         tmp_loc_x, tmp_loc_y, _ = tmp_obj.get_position()
-        tmp_radius = (max(tmp_obj.get_dimensions()[:2]) * tmp_obj.scale_factor) / 2
+        tmp_radius = tmp_obj.get_ground_radius()#(max(tmp_obj.get_dimensions()[:2]) * tmp_obj.scale_factor) / 2
 
         distance = math.sqrt((tmp_loc_x - obj_x) ** 2 + (tmp_loc_y - obj_y) ** 2)
         if distance < (tmp_radius + obj_radius):

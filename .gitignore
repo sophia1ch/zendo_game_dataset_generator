@@ -370,3 +370,4 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains,pycharm,python,blender
 
 output/
+.DS_Store
