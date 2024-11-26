@@ -1,0 +1,12 @@
+name: ki_praktikum_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy=1.26.4
+  - pyyaml=6.0.2
+  - pip
+  - pip:
+      - bpy==4.3.0
+      - mathutils==3.3.0

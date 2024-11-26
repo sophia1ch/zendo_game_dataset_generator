@@ -12,7 +12,7 @@ class blender_obj:
         :param name: Name of the object in blender file
         """
         # Load object from file
-        filename = os.path.join(args.shape_dir, '%s.blend' % name, 'Object', name)
+        filename = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object', name)
         bpy.ops.wm.append(filename=filename)
         # Rename and set object
         self.name = '%s_%d' % (name, get_object_count(name))

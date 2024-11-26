@@ -1,4 +1,4 @@
-base_scene_blendfile: 'data/base_scene_new.blend' # Base blender file on which all scenes are based;includes ground plane, lights, and camera.
+base_scene_blendfile: 'data/base_scene.blend' # Base blender file on which all scenes are based;includes ground plane, lights, and camera.
 properties_json: 'data/properties.json' # JSON file defining objects, materials, sizes, and colors.
 shape_dir: 'data/shapes' # Directory where .blend files for object models are stored
 output_dir: 'output' # The directory where output images will be stored. It will be created if it does not exist.

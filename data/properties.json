@@ -1,7 +1,6 @@
 {
   "shapes": {
-    "disc-old": "Disc",
-    "disc": "Disc1",
+    "disc": "Disc",
     "pyramid": "Pyramid"
   },
   "colors": {
