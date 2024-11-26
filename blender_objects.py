@@ -56,6 +56,7 @@ class blender_obj:
         #top_p = max(rotated_vertices, key=lambda p: p.z)
         center_z = self.obj.location.z
         self.obj.location = mathutils.Vector((x, y, center_z - bottom_p.z))
+        bpy.context.view_layer.update()
 
     def get_ground_radius(self):
         rotated_vertices = [self.obj.rotation_quaternion@(self.scale_factor*vertex.co) for vertex in self.obj.data.vertices]
@@ -114,6 +115,7 @@ class blender_obj:
         # Afterwards scale with new factor
         self.obj.scale = mathutils.Vector(self.obj.scale) * scale_factor
         self.scale_factor = scale_factor
+        bpy.context.view_layer.depsgraph.update()
 
 
 ################################################
@@ -162,6 +164,25 @@ def check_collision(obj: blender_obj, obj_x: float, obj_y: float, obj_list: list
         if distance < (tmp_radius + obj_radius):
             return True
     return False
+
+
+def place_ontop(top: blender_obj, bottom: blender_obj, args):
+    """
+    Places a blender object ontop of another object.
+    :param args: Config arguments, needed for width factor to place stacked object slightly on top
+    :param top: The object to be placed on another object
+    :param bottom: The object on which another object gets placed upon
+    :return:
+    """
+    top.obj.location.x = bottom.obj.location.x
+    top.obj.location.y = bottom.obj.location.y
+    bottom_peak = bottom.obj.location.z + (bottom.obj.dimensions.z / 2)
+    top_peak = (top.obj.dimensions.z / 2)
+    width_factor = args.stacking_offset
+    height_offset = (bottom_peak - top_peak) + width_factor
+    top.obj.location.z = height_offset
+    bpy.context.view_layer.update()
+
 
 
 def get_object_count(name):

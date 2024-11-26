@@ -7,7 +7,7 @@ from argparse import Namespace
 import yaml
 import numpy as np
 import random
-from blender_objects import blender_obj, check_collision, set_random_position
+from blender_objects import blender_obj, check_collision, set_random_position, place_ontop
 import utils
 
 
@@ -38,6 +38,27 @@ def main(args):
         set_random_position(pyr, list_of_objects)
         pyr.set_color(random.choice(list(object_colors.values())))
         list_of_objects.append(pyr)
+
+
+
+    # Place on top example
+    top2 = blender_obj(args, name=object_shapes["pyramid"])
+    top2.scale(0.3)
+    top2.set_color(object_colors["red"])
+    top2.set_pose(1.0, -2.0, 0.0, type="upright")
+
+    top = blender_obj(args, name=object_shapes["pyramid"])
+    top.scale(0.5)
+    top.set_pose(1.0, -2.0, 0.0, type="upright")
+    top.set_color(object_colors["blue"])
+
+    bottom = blender_obj(args, name=object_shapes["pyramid"])
+    bottom.scale(1.0)
+    bottom.set_color(object_colors["yellow"])
+    bottom.set_pose(2.0, -2.0, 0.0, type="upright")
+
+    place_ontop(top, bottom, args)
+    place_ontop(top2, top, args)
 
     #######################################################
     # Initialize render settings

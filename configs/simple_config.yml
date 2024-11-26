@@ -10,3 +10,4 @@ render_num_samples: 64 # The number of samples to use when rendering. Larger val
 render_min_bounces: 8 # The minimum number of bounces to use for rendering.
 render_max_bounces: 8 # The maximum number of bounces to use for rendering.
 render_tile_size: 256 # The tile size to use for rendering.
+stacking_offset: 0.1 # Offset for stacking objects ontop of each other
