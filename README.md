@@ -37,7 +37,7 @@ You can set up the project environment using one of the following methods:
      ```
    - **Windows**: Execute `setup_env.ps1` in PowerShell:
      ```powershell
-     ./setup_env.ps1
+     .\setup_env.ps1
      ```
 3. Follow the script prompts. If Miniconda is not installed, the script will download and install it automatically.
 
