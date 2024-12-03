@@ -1,0 +1,83 @@
+// Space of all possible ZENDO rules
+// Based on the original cards from ZENDO: means that a maximum of two attributes are always random (NUMBER excluded)!
+
+
+A structure contains QUANTITY
+
+QUANTITY:
+at least ...
+    at least NUMBER COLOR pieces OPERATION
+    at least NUMBER ORIENTATION pieces OPERATION
+    at least NUMBER SHAPE pieces OPERATION
+    at least NUMBER COLOR pieces SHAPE
+    at least NUMBER ORIENTATION SHAPE pieces
+    at least NUMBER SHAPE pieces INTERACTION
+exactly ...
+    exactly NUMBER COLOR pieces OPERATION
+    exactly NUMBER ORIENTATION pieces OPERATION
+    exactly NUMBER SHAPE pieces OPERATION
+    exactly NUMBER COLOR SHAPE pieces
+    exactly NUMBER ORIENTATION SHAPE pieces
+    exactly NUMBER SHAPE pieces INTERACTION
+more ... pieces than ...
+    more SHAPE pieces than SHAPE pieces
+    more COLOR pieces than SHAPE pieces
+    more ORIENTATION pieces than SHAPE pieces
+    more COLOR pieces than COLOR pieces
+    more SHAPE pieces than COLOR pieces
+    more ORIENTATION pieces than COLOR pieces
+    more ORIENTATION pieces than ORIENTATION pieces
+    more SHAPE pieces than ORIENTATION pieces
+    more COLOR pieces than ORIENTATION pieces
+an odd number of ...
+    an odd number of total pieces
+    an odd number of COLOR pieces OPERATION
+    an odd number of ORIENTATION pieces OPERATION
+    an odd number of SHAPE pieces OPERATION
+    an odd number of SHAPE pieces INTERACTION
+an even number of ...
+    an even number of total pieces
+    an even number of COLOR pieces OPERATION
+    an even number of ORIENTATION pieces OPERATION
+    an even number of SHAPE pieces OPERATION
+    an even number of SHAPE pieces INTERACTION
+either NUMBER or NUMBER of total pieces
+
+OPERATION:
+and QUANTITY
+or QUANTITY
+none
+
+INTERACTION:
+touching a SHAPE piece
+grounded pieces
+pointing at a SHAPE piece
+on top of another SHAPE piece
+// more complex (more than two random attributes) not in json included!
+touching QUANTITY SHAPE pieces
+pointing at QUANTITY SHAPE pieces
+
+
+// Attributes
+ORIENTATION:
+flat
+vertical
+upright
+upside-down
+weird
+
+COLOR:
+blue
+yellow
+red
+
+SHAPE:
+pyramid
+wedge
+block
+
+NUMBER:
+0
+1
+2
+3

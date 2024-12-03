@@ -1,0 +1,201 @@
+{
+  "QUANTITY": {
+    "at least": [
+      {
+        "template": "at least {NUMBER} {COLOR} pieces {OPERATION}",
+        "placeholders": ["NUMBER", "COLOR", "OPERATION"]
+      },
+      {
+        "template": "at least {NUMBER} {ORIENTATION} pieces {OPERATION}",
+        "placeholders": ["NUMBER", "ORIENTATION", "OPERATION"]
+      },
+      {
+        "template": "at least {NUMBER} {SHAPE} pieces {OPERATION}",
+        "placeholders": ["NUMBER", "SHAPE", "OPERATION"]
+      },
+      {
+        "template": "at least {NUMBER} {COLOR} pieces {SHAPE}",
+        "placeholders": ["NUMBER", "COLOR", "SHAPE"]
+      },
+      {
+        "template": "at least {NUMBER} {ORIENTATION} {SHAPE} pieces",
+        "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"]
+      },
+      {
+        "template": "at least {NUMBER} {SHAPE} pieces {INTERACTION}",
+        "placeholders": ["NUMBER", "SHAPE", "INTERACTION"]
+      }
+    ],
+    "exactly": [
+      {
+        "template": "exactly {NUMBER} {COLOR} pieces {OPERATION}",
+        "placeholders": ["NUMBER", "COLOR", "OPERATION"]
+      },
+      {
+        "template": "exactly {NUMBER} {ORIENTATION} pieces {OPERATION}",
+        "placeholders": ["NUMBER", "ORIENTATION", "OPERATION"]
+      },
+      {
+        "template": "exactly {NUMBER} {SHAPE} pieces {OPERATION}",
+        "placeholders": ["NUMBER", "SHAPE", "OPERATION"]
+      },
+      {
+        "template": "exactly {NUMBER} {COLOR} {SHAPE} pieces",
+        "placeholders": ["NUMBER", "COLOR", "SHAPE"]
+      },
+      {
+        "template": "exactly {NUMBER} {ORIENTATION} {SHAPE} pieces",
+        "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"]
+      },
+      {
+        "template": "exactly {NUMBER} {SHAPE} pieces {INTERACTION}",
+        "placeholders": ["NUMBER", "SHAPE", "INTERACTION"]
+      }
+    ],
+    "more pieces than": [
+      {
+        "template": "more {SHAPE} pieces than {SHAPE} pieces",
+        "placeholders": ["SHAPE"]
+      },
+      {
+        "template": "more {COLOR} pieces than {SHAPE} pieces",
+        "placeholders": ["COLOR", "SHAPE"]
+      },
+      {
+        "template": "more {ORIENTATION} pieces than {SHAPE} pieces",
+        "placeholders": ["ORIENTATION", "SHAPE"]
+      },
+      {
+        "template": "more {COLOR} pieces than {COLOR} pieces",
+        "placeholders": ["COLOR"]
+      },
+      {
+        "template": "more {SHAPE} pieces than {COLOR} pieces",
+        "placeholders": ["SHAPE", "COLOR"]
+      },
+      {
+        "template": "more {ORIENTATION} pieces than {COLOR} pieces",
+        "placeholders": ["ORIENTATION", "COLOR"]
+      },
+      {
+        "template": "more {ORIENTATION} pieces than {ORIENTATION} pieces",
+        "placeholders": ["ORIENTATION"]
+      },
+      {
+        "template": "more {SHAPE} pieces than {ORIENTATION} pieces",
+        "placeholders": ["SHAPE", "ORIENTATION"]
+      },
+      {
+        "template": "more {COLOR} pieces than {ORIENTATION} pieces",
+        "placeholders": ["COLOR", "ORIENTATION"]
+      }
+    ],
+    "an odd number of": [
+      {
+        "template": "an odd number of total pieces",
+        "placeholders": []
+      },
+      {
+        "template": "an odd number of {COLOR} pieces {OPERATION}",
+        "placeholders": ["COLOR", "OPERATION"]
+      },
+      {
+        "template": "an odd number of {ORIENTATION} pieces {OPERATION}",
+        "placeholders": ["ORIENTATION", "OPERATION"]
+      },
+      {
+        "template": "an odd number of {SHAPE} pieces {OPERATION}",
+        "placeholders": ["SHAPE", "OPERATION"]
+      },
+      {
+        "template": "an odd number of {SHAPE} pieces {INTERACTION}",
+        "placeholders": ["SHAPE", "INTERACTION"]
+      }
+    ],
+    "an even number of": [
+      {
+        "template": "an even number of total pieces",
+        "placeholders": []
+      },
+      {
+        "template": "an even number of {COLOR} pieces {OPERATION}",
+        "placeholders": ["COLOR", "OPERATION"]
+      },
+      {
+        "template": "an even number of {ORIENTATION} pieces {OPERATION}",
+        "placeholders": ["ORIENTATION", "OPERATION"]
+      },
+      {
+        "template": "an even number of {SHAPE} pieces {OPERATION}",
+        "placeholders": ["SHAPE", "OPERATION"]
+      },
+      {
+        "template": "an even number of {SHAPE} pieces {INTERACTION}",
+        "placeholders": ["SHAPE", "INTERACTION"]
+      }
+    ],
+    "either": [
+      {
+        "template": "either {NUMBER} or {NUMBER} of total pieces",
+        "placeholders": ["NUMBER"]
+      }
+    ]
+  },
+  "OPERATION": [
+    {
+      "template": "and {QUANTITY}",
+      "placeholders": ["QUANTITY"]
+    },
+    {
+      "template": "or {QUANTITY}",
+      "placeholders": ["QUANTITY"]
+    },
+    {
+      "template": "none",
+      "placeholders": []
+    }
+  ],
+  "INTERACTION": [
+    {
+      "template": "touching a {SHAPE} piece",
+      "placeholders": ["SHAPE"]
+    },
+    {
+      "template": "grounded pieces",
+      "placeholders": []
+    },
+    {
+      "template": "pointing at a {SHAPE} piece",
+      "placeholders": ["SHAPE"]
+    },
+    {
+      "template": "on top of another {SHAPE} piece",
+      "placeholders": ["SHAPE"]
+    }
+  ],
+  "ATTRIBUTES": {
+    "ORIENTATION": [
+      "flat",
+      "vertical",
+      "upright",
+      "upside-down",
+      "weird"
+    ],
+    "COLOR": [
+      "blue",
+      "yellow",
+      "red"
+    ],
+    "SHAPE": [
+      "pyramid",
+      "wedge",
+      "block"
+    ],
+    "NUMBER": [
+      0,
+      1,
+      2,
+      3
+    ]
+  }
+}
