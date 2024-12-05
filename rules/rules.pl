@@ -17,11 +17,10 @@ position(upside_down).
 position(weird).
 
 % Interactions
-interaction(touching).
-interaction(grounded).
-interaction(pointing).
-interaction(on_top_of).
-interaction(more_of_type).
+%interaction(touching).
+%interaction(grounded).
+%interaction(pointing).
+%interaction(on_top_of).
 
 % Item
 % One item has a shape, color and position
@@ -46,16 +45,42 @@ rule_opposite_directions(Structure) :-
 
 
 
-% Count occurrences of a specific type
-count_type(_, [], 0).
-count_type(Type, [piece(Type, _, _)|T], Count) :- count_type(Type, T, SubCount), Count is SubCount + 1.
-count_type(Type, [_|T], Count) :- count_type(Type, T, Count).
+% exactly NUMBER of pieces  of a specific type
+exactly(_, [], 0).
+exactly(Type, [item(Type, _, _)|T], Number) :- exactly(Type, T, SubNumber), Number is SubNumber + 1.
+exactly(Type, [_|T], Number) :- exactly(Type, T, Number).
 
 % Rule: More pyramids than wedges
 rule_more_pyramids_than_wedges(Structure) :-
     count_type(pyramid, Structure, NumPyramids),
     count_type(wedge, Structure, NumWedges),
     NumPyramids > NumWedges.
+
+% at least
+
+% exactly
+
+% more than
+
+% odd number
+
+% even number
+
+% either or
+
+% and
+
+% or
+
+% touching
+
+% grounded
+
+% pointing
+
+% on top of
+
+%
 
 
 

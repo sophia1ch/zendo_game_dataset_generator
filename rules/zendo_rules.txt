@@ -2,7 +2,7 @@
 // Based on the original cards from ZENDO: means that a maximum of two attributes are always random (NUMBER excluded)!
 
 
-A structure contains QUANTITY
+A structure must contain QUANTITY
 
 QUANTITY:
 at least ...

@@ -1,31 +1,30 @@
 from pyswip import Prolog
-
-
-def parse_rule(rule_str):
-    # TODO: implement
-    pass
+import os
 
 
 def generate_scene():
     prolog = Prolog()
-    rule_path = "rules.pl"
+    rule_path = os.path.join(os.path.dirname(__file__), 'rules_third.pl')
     prolog.consult(rule_path)
 
-    # Parse the rule string to Prolog
-    # prolog_rule = parse_rule(rule_str)
-    prolog_rule = f"rule_opposite_directions(Structure)"
+    # Define a structure of items
+    structure = [
+        "item(red, pyramid, flat)",
+        "item(red, wedge, vertical)",
+        "item(red, block, upright)"
+    ]
 
-    # Query Prolog with the parsed rule
-    correct_scenes = []
-    query_str = f"rule_opposite_directions([item(pyramid, blue, flat), item(block, yellow, upside_down)])"
+    # Convert the structure into Prolog format
+    structure_str = "[" + ", ".join(structure) + "]"
+
+    # Example query to check if there's at least one red item in the structure
+    query = f"at_least(red, 1, {structure_str}, Count)"
+    print(query)
 
     # Execute the query
-    for scene in prolog.query(query_str):
-        correct_scenes.append(scene)
-
-    return correct_scenes
+    result = list(prolog.query(query))
+    print(result)
 
 
 # Example usage
-scenes = generate_scene()
-print("Generierte Szenen:", scenes)
+generate_scene()
