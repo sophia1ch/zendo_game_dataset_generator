@@ -14,16 +14,28 @@
         "placeholders": ["NUMBER", "SHAPE", "OPERATION"]
       },
       {
-        "template": "at least {NUMBER} {COLOR} pieces {SHAPE}",
+        "template": "at least {NUMBER} {COLOR} {SHAPE} pieces ",
         "placeholders": ["NUMBER", "COLOR", "SHAPE"]
       },
       {
-        "template": "at least {NUMBER} {ORIENTATION} {SHAPE} pieces",
+        "template": "at least {NUMBER} {ORIENTATION} {SHAPE} pieces ",
         "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"]
+      },
+      {
+        "template": "at least {NUMBER} {COLOR} {ORIENTATION} pieces ",
+        "placeholders": ["NUMBER", "COLOR", "ORIENTATION"]
       },
       {
         "template": "at least {NUMBER} {SHAPE} pieces {INTERACTION}",
         "placeholders": ["NUMBER", "SHAPE", "INTERACTION"]
+      },
+      {
+        "template": "at least {NUMBER} {COLOR} pieces {INTERACTION}",
+        "placeholders": ["NUMBER", "COLOR", "INTERACTION"]
+      },
+      {
+        "template": "at least {NUMBER} {ORIENTATION} pieces {INTERACTION}",
+        "placeholders": ["NUMBER", "ORIENTATION", "INTERACTION"]
       }
     ],
     "exactly": [
@@ -48,8 +60,20 @@
         "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"]
       },
       {
+        "template": "exactly {NUMBER} {COLOR} {ORIENTATION} pieces",
+        "placeholders": ["NUMBER", "COLOR", "ORIENTATION"]
+      },
+      {
         "template": "exactly {NUMBER} {SHAPE} pieces {INTERACTION}",
         "placeholders": ["NUMBER", "SHAPE", "INTERACTION"]
+      },
+      {
+        "template": "exactly {NUMBER} {COLOR} pieces {INTERACTION}",
+        "placeholders": ["NUMBER", "COLOR", "INTERACTION"]
+      },
+      {
+        "template": "exactly {NUMBER} {ORIENTATION} pieces {INTERACTION}",
+        "placeholders": ["NUMBER", "ORIENTATION", "INTERACTION"]
       }
     ],
     "more pieces than": [
