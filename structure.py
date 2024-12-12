@@ -4,43 +4,61 @@ from mathutils import Vector
 from zendo_objects import ZendoObject
 import math
 
+face_map = {
+        "front": ('X', 1),
+        "back": ('X', -1),
+        "right": ('Y', 1),
+        "left": ('Y', -1),
+        "top": ('Z', 1),
+        "bottom": ('Z', -1),
+    }
+
 
 def rel_pointing(target: ZendoObject, relatives: list[ZendoObject]):
     pass
 
 
-def rel_touching(object_1: ZendoObject, object_2: ZendoObject, axis='X', direction=1):
+def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
     """
     Place object_1 against object_2 along the specified axis.
 
     :param object_1: Blender object to move.
     :param object_2: Blender object to align with.
-    :param axis: The axis along which to align ('X', 'Y', 'Z').
-    :param direction: Direction to move (1 for positive, -1 for negative).
+    :param face: The face name as a string ('front', 'back', 'right', 'left', 'top').
     """
+    # Ensure the requested face is valid
+    if face not in face_map:
+        raise ValueError(
+            f"{face} is not a valid face! "
+            f"Valid faces are: {[f for f in face_map]}"
+        )
+
+    # Ensure the face of the second object is free
+    if object_2.get_touching()[face] != None:
+        raise ValueError(
+            f"{face} of {object_2.name} is already occupied!"
+        )
+
     # Ensure both objects are properly updated
-    bpy.context.view_layer.update()
+    axis, direction = face_map.get(face.lower(), None)
     loc_object_2 = object_2.get_position()
     object_1.set_position(Vector((loc_object_2[0], loc_object_2[1], object_1.get_position()[2])))
 
-    # Get the bounding boxes of both objects
-    bbox1 = [mathutils.Vector(corner) @ object_1.obj.matrix_world for corner in object_1.obj.bound_box]
-    bbox2 = [mathutils.Vector(corner) @ object_2.obj.matrix_world for corner in object_2.obj.bound_box]
+    obj1_min, obj1_max = object_1.get_world_bounding_box()
+    obj2_min, obj2_max = object_2.get_world_bounding_box()
 
-    # Extract axis index
+    # Get the axis index ('X' = 0, 'Y' = 1, 'Z' = 2)
     axis_index = 'XYZ'.index(axis.upper())
 
-    # Get the min and max values for each object's bounding box
-    obj1_min = min([v[axis_index] for v in bbox1])
-    obj1_max = max([v[axis_index] for v in bbox1])
-    obj2_min = min([v[axis_index] for v in bbox2])
-    obj2_max = max([v[axis_index] for v in bbox2])
-
-    # Compute the offset required to touch object_2
+    # Calculate the offset to align the objects
     if direction > 0:
-        offset = obj2_max - obj1_min
+        offset = obj2_max[axis_index] - obj1_min[axis_index]
     else:
-        offset = obj2_min - obj1_max
+        offset = obj2_min[axis_index] - obj1_max[axis_index]
 
     # Move object_1 to touch object_2
     object_1.obj.location[axis_index] += offset
+    object_2.set_touching(face, object_1)
+    object_1_face = list(face_map.keys())[list(face_map.values()).index((axis, direction*(-1)))]
+    object_1.set_touching(object_1_face, object_2)
+

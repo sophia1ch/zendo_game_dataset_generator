@@ -42,9 +42,24 @@ class ZendoObject:
         self.set_color(color)
         self.set_pose(pose)
         self.set_to_ground()
+        self.grounded = True
+        self.touching = {
+            'left': None,
+            'right': None,
+            'front': None,
+            'back': None,
+            'top': None,
+            'bottom': None,
+        }
 
         self.rays = []
         ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
+
+    def set_touching(self, face: str, obj):
+        self.touching[face] = obj
+
+    def get_touching(self):
+        return self.touching
 
     def set_pose(self, pose):
         self.check_pose(pose)
@@ -54,6 +69,7 @@ class ZendoObject:
         self.set_to_ground()
         self.update_rays(pose)
         bpy.context.view_layer.update()
+        print("test")
 
     def set_position(self, position: Vector):
         self.obj.location = position
@@ -124,6 +140,29 @@ class ZendoObject:
 
     def update_rays(self, pose):
         pass
+
+    def get_world_bounding_box(self):
+        """
+        Calculate the world-space bounding box of an object.
+        This accounts for rotation, scale, and position.
+
+        :param self: The ZendoObject object.
+        :return: A tuple of min and max coordinates (min_x, max_x, min_y, max_y, min_z, max_z).
+        """
+        bpy.context.view_layer.update()
+
+        # Get the world-space coordinates of the object's vertices
+        world_vertices = [self.obj.matrix_world @ mathutils.Vector(v.co) for v in self.obj.data.vertices]
+
+        # Find the min and max values along each axis
+        min_coords = mathutils.Vector((min(v.x for v in world_vertices),
+                                       min(v.y for v in world_vertices),
+                                       min(v.z for v in world_vertices)))
+        max_coords = mathutils.Vector((max(v.x for v in world_vertices),
+                                       max(v.y for v in world_vertices),
+                                       max(v.z for v in world_vertices)))
+
+        return min_coords, max_coords
 
 
 class Pyramid(ZendoObject):

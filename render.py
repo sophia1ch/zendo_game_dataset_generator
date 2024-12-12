@@ -32,15 +32,15 @@ def main(args):
     block = zendo_objects.Block(args, 1.0, object_colors["yellow"], "upright")
     wedge = zendo_objects.Wedge(args, 1.0, object_colors["blue"], "cheesecake")
     block2 = zendo_objects.Block(args, 1.0, object_colors["red"], "upright")
-    pyr = zendo_objects.Pyramid(args, 1.0, object_colors["yellow"], "upright")
+    pyr = zendo_objects.Pyramid(args, 1.0, object_colors["green"], "upright")
 
 
 
 
-    rel_touching(wedge, block, axis='X')
-    rel_touching(block2, block, axis='Y')
+    rel_touching(wedge, block, face='left')
+    rel_touching(block2, block, face='right')
 
-    rel_touching(pyr, block2, axis='Z')
+    rel_touching(pyr, block, face='top')
 
 
 
