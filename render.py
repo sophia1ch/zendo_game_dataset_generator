@@ -29,11 +29,19 @@ def main(args):
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
     object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
 
-    wedge = zendo_objects.Wedge(args, 1.0, object_colors["blue"], "cheesecake")
-
     block = zendo_objects.Block(args, 1.0, object_colors["yellow"], "upright")
+    wedge = zendo_objects.Wedge(args, 1.0, object_colors["blue"], "cheesecake")
+    block2 = zendo_objects.Block(args, 1.0, object_colors["red"], "upright")
+    pyr = zendo_objects.Pyramid(args, 1.0, object_colors["yellow"], "upright")
+
+
+
 
     rel_touching(wedge, block, axis='X')
+    rel_touching(block2, block, axis='Y')
+
+    rel_touching(pyr, block2, axis='Z')
+
 
 
 

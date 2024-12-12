@@ -1,5 +1,6 @@
 import bpy
 import mathutils
+from mathutils import Vector
 from zendo_objects import ZendoObject
 import math
 
@@ -19,6 +20,8 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, axis='X', directi
     """
     # Ensure both objects are properly updated
     bpy.context.view_layer.update()
+    loc_object_2 = object_2.get_position()
+    object_1.set_position(Vector((loc_object_2[0], loc_object_2[1], object_1.get_position()[2])))
 
     # Get the bounding boxes of both objects
     bbox1 = [mathutils.Vector(corner) @ object_1.obj.matrix_world for corner in object_1.obj.bound_box]

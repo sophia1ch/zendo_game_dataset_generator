@@ -46,8 +46,6 @@ class ZendoObject:
         self.rays = []
         ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
 
-
-
     def set_pose(self, pose):
         self.check_pose(pose)
         self.obj.rotation_mode = "QUATERNION"
@@ -55,7 +53,13 @@ class ZendoObject:
         self.pose = pose
         self.set_to_ground()
         self.update_rays(pose)
+        bpy.context.view_layer.update()
 
+    def set_position(self, position: Vector):
+        self.obj.location = position
+
+    def get_position(self):
+        return self.obj.location
 
     def get_scaled_and_rotated_vertices(self):
         """
