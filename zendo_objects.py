@@ -98,19 +98,28 @@ class ZendoObject:
                 f"Valid poses are: {[p for p in self.__class__.poses]}"
             )
 
-    def force_recompute(self, vertices: list[mathutils.Vector] | None = None):
-        """
-        Recomputes self.computed and blender properties.
-        This is done using the given vertices which are expected to be returned from self.get_scaled_and_rotated_vertices
-        or None, in which case self.get_scaled_and_rotated_vertices is called.
-        """
-        if vertices is None:
-            vertices = self.get_scaled_and_rotated_vertices()
-        self.computed = ZendoObject.computed_values(
-            ground_radius=max([math.sqrt(p.x ** 2 + p.y ** 2) for p in vertices]),
-            local_top=max([p.z for p in vertices]),
-            local_bottom=min([p.z for p in vertices]),
-        )
+
+    def set_rotation(self, axis: str, rad: float):
+        self.obj.rotation_mode = "QUATERNION"
+        if axis.upper() == 'X':
+            rotation = Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(rad))
+        elif axis.upper() == 'Y':
+            rotation = Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(rad))
+        elif axis.upper() == 'Z':
+            rotation = Quaternion(Vector((0.0, 0.0, 1.0)), math.radians(rad))
+        else:
+            raise ValueError(
+                f"{axis} is an invalid axis!"
+            )
+        self.obj.rotation_quaternion = rotation @ self.obj.rotation_quaternion
+        self.set_to_ground()
+        bpy.context.view_layer.update()
+
+    def rotate_z(self, rad: float):
+        self.obj.rotation_mode = "QUATERNION"
+        rotation = Quaternion(Vector((0, 0, 1)), math.radians(rad))
+        self.obj.rotation_quaternion = rotation @ self.obj.rotation_quaternion
+        self.set_to_ground()
         bpy.context.view_layer.update()
 
     def set_color(self, color: list[float]):

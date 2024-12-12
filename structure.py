@@ -17,6 +17,28 @@ face_map = {
 def rel_pointing(target: ZendoObject, relatives: list[ZendoObject]):
     pass
 
+def check_beneath(object: ZendoObject):
+    beneath_objects = []
+
+    # Get the bounding box of the target object
+    target_min, target_max = object.get_world_bounding_box()
+
+    # Iterate over all objects in the scene
+    for obj in bpy.data.objects:
+        # Skip the target object itself
+        if obj == object.obj:
+            continue
+
+        # Calculate the bounding box for the current object
+        obj_min, obj_max = obj.calculate_world_bounding_box()
+
+        # Check if the current object is beneath the target object
+        if obj_max.z <= target_min.z:
+            beneath_objects.append(obj)
+
+    return beneath_objects
+
+
 
 def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
     """
@@ -24,7 +46,7 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
 
     :param object_1: Blender object to move.
     :param object_2: Blender object to align with.
-    :param face: The face name as a string ('front', 'back', 'right', 'left', 'top').
+    :param face: The face of object_2 to align object_1 with as a string ('front', 'back', 'right', 'left', 'top').
     """
     # Ensure the requested face is valid
     if face not in face_map:
@@ -34,7 +56,7 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
         )
 
     # Ensure the face of the second object is free
-    if object_2.get_touching()[face] != None:
+    if object_2.get_touching()[face] is not None:
         raise ValueError(
             f"{face} of {object_2.name} is already occupied!"
         )
@@ -61,4 +83,7 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
     object_2.set_touching(face, object_1)
     object_1_face = list(face_map.keys())[list(face_map.values()).index((axis, direction*(-1)))]
     object_1.set_touching(object_1_face, object_2)
+
+    if face == "top":
+        object_1.grounded = False
 

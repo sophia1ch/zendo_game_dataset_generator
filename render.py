@@ -30,17 +30,22 @@ def main(args):
     object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
 
     block = zendo_objects.Block(args, 1.0, object_colors["yellow"], "upright")
-    wedge = zendo_objects.Wedge(args, 1.0, object_colors["blue"], "cheesecake")
     block2 = zendo_objects.Block(args, 1.0, object_colors["red"], "upright")
+    block3 = zendo_objects.Block(args, 1.0, object_colors["purple"], "flat")
+    wedge2 = zendo_objects.Wedge(args, 1.0, object_colors["cyan"], "cheesecake")
+    wedge2.rotate_z(-90)
+    pyr2 = zendo_objects.Pyramid(args, 1.0, object_colors["brown"], "upright")
     pyr = zendo_objects.Pyramid(args, 1.0, object_colors["green"], "upright")
-
-
-
-
+    wedge = zendo_objects.Wedge(args, 1.0, object_colors["blue"], "upright")
+    wedge.set_rotation('X', -40)
+    pyr2.set_rotation('X', 40)
+    rel_touching(block, block2, face='left')
+    rel_touching(block3, block2, face='right')
+    rel_touching(pyr, block3, face='top')
     rel_touching(wedge, block, face='left')
-    rel_touching(block2, block, face='right')
+    rel_touching(wedge2, block, face='top')
+    rel_touching(pyr2, block2, face='top')
 
-    rel_touching(pyr, block, face='top')
 
 
 
