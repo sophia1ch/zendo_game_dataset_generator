@@ -7,7 +7,7 @@ def generate_scene():
     rule_path = os.path.join(os.path.dirname(__file__), 'rules.pl')
     prolog.consult(rule_path)
 
-    query = f"odd_number_of(red, Structure)"
+    query = f"and([either_or(7, 5, Structure), at_least(red, 3, Structure)], Structure)"
 
     # Execute the query
     results = []
@@ -15,7 +15,7 @@ def generate_scene():
         prolog_query = prolog.query(query)
         for i, szene in enumerate(prolog_query):
             res = szene["Structure"]
-            print(i, res)
+            print(i, len(res), res)
             results.append(res)
 
 # Example usage

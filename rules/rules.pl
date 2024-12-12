@@ -60,7 +60,7 @@ odd_number_of(Structure) :-
     max_items(MaxItems),
     Tmp is MaxItems - 1, % subtract one for not getting out of bounds
     random_between(1, Tmp, TotalItemAmount),
-    (TotalItemAmount mod 2 =:= 0 -> OddAmount is TotalItemAmount + 1; OddAmount is TotalItemAmount),
+    (TotalItemAmount mod 2 =:= 0 -> OddAmount is TotalItemAmount + 1; OddAmount = TotalItemAmount),
     generate_items(OddAmount, Structure).
 
 % Rule to generate a structure that satisfies the "even" condition for the total amount of items in structure
@@ -68,7 +68,7 @@ even_number_of(Structure) :-
     max_items(MaxItems),
     Tmp is MaxItems - 1, % subtract one for not getting out of bounds
     random_between(1, Tmp, TotalItemAmount),
-    (TotalItemAmount mod 2 =:= 1 -> EvenAmount is TotalItemAmount + 1; EvenAmount is TotalItemAmount),
+    (TotalItemAmount mod 2 =:= 1 -> EvenAmount is TotalItemAmount + 1; EvenAmount = TotalItemAmount),
     generate_items(EvenAmount, Structure).
 
 % Rule to generate a structure that satisfies the "odd" condition for a specific attribute in the structure
@@ -76,8 +76,8 @@ odd_number_of(Attribute, Structure) :-
     max_items(MaxItems),
     random_between(1, MaxItems, TotalItemAmount),
     TmpTotalAmount is TotalItemAmount - 1,
-    random_between(1, TmpTotalAmount, TmpAmount),
-    (TmpAmount mod 2 =:= 0 -> OddAmount is TmpAmount + 1; OddAmount is TmpAmount),
+    random_between(0, TmpTotalAmount, TmpAmount),
+    (TmpAmount mod 2 =:= 0 -> OddAmount is TmpAmount + 1; OddAmount = TmpAmount),
     generate_items_with_attribute(Attribute, OddAmount, OddItems),
     Remaining is TotalItemAmount - OddAmount,
     generate_items_without_attribute(Attribute, Remaining, RemainingItems),
@@ -87,15 +87,23 @@ odd_number_of(Attribute, Structure) :-
 % Rule to generate a structure that satisfies the "even" condition for a specific attribute in the structure
 even_number_of(Attribute, Structure) :-
     max_items(MaxItems),
-    random_between(1, MaxItems, TotalItemAmount),
+    random_between(2, MaxItems, TotalItemAmount),
     TmpTotalAmount is TotalItemAmount - 1,
     random_between(1, TmpTotalAmount, TmpAmount),
-    (TmpAmount mod 2 =:= 1 -> EvenAmount is TmpAmount + 1; EvenAmount is TmpAmount),
+    (TmpAmount mod 2 =:= 1 -> EvenAmount is TmpAmount + 1; EvenAmount = TmpAmount),
     generate_items_with_attribute(Attribute, EvenAmount, EvenItems),
     Remaining is TotalItemAmount - EvenAmount,
     generate_items_without_attribute(Attribute, Remaining, RemainingItems),
     append(EvenItems, RemainingItems, FullStructure),
     random_permutation(FullStructure, Structure).
+
+% Rule to generate a structure that satisfies the "either N1 or N2" condition for the total amount of items in structure
+either_or(N1, N2, Structure) :-
+    max_items(MaxItems),
+    random_between(0, 1, RandBit),
+    (RandBit = 0 -> RandItemAmount = N1; RandItemAmount = N2),
+    (RandItemAmount > MaxItems -> TotalItemAmount = MaxItems; TotalItemAmount = RandItemAmount),
+    generate_items(TotalItemAmount, Structure).
 
 
 
@@ -155,6 +163,7 @@ generate_items(N, [item(Color, Shape, Orientation) | Rest]) :-
 random_color(Color) :- findall(C, color(C), Colors), random_member(Color, Colors).
 random_shape(Shape) :- findall(S, shape(S), Shapes), random_member(Shape, Shapes).
 random_orientation(Orientation) :- findall(O, orientation(O), Orientations), random_member(Orientation, Orientations).
+
 % Random selection of attributes with one excluded attribute
 random_color_exclude(Attribute, Color) :-
     findall(C, color(C), PossibleColors),
@@ -168,7 +177,6 @@ random_orientation_exclude(Attribute, Orientation) :-
     findall(O, orientation(O), PossibleOrientations),
     exclude(=(Attribute), PossibleOrientations, FilteredOrientations),
     random_member(Orientation, FilteredOrientations).
-
 
 % Generates two random numbers and guarantees that first number is greater than second
 generate_random_greater_numbers(TotalAmount, FirstNumber, SecondNumber) :-
