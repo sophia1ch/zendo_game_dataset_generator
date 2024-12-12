@@ -7,8 +7,9 @@ def generate_scene():
     rule_path = os.path.join(os.path.dirname(__file__), 'rules.pl')
     prolog.consult(rule_path)
 
-    query = f"and([either_or(7, 5, Structure), at_least(red, 3, Structure)], Structure)"
-
+    #query = "and([either_or(7, 5, Structure), at_least(red, 3, Structure)], Structure)"
+    #query = "generate_valid_structure([check_exactly(red,3,Structure)], Structure)"
+    query = "generate_valid_structure([or_checks([check_exactly(red,3,Structure), check_more_than(red,blue,Structure)])], Structure)"
     # Execute the query
     results = []
     for _ in range(100):
