@@ -1,7 +1,7 @@
 import bpy
 import mathutils
 from mathutils import Vector
-from zendo_objects import ZendoObject
+from zendo_objects import ZendoObject, Pyramid
 import math
 
 face_map = {
@@ -16,6 +16,7 @@ face_map = {
 
 def rel_pointing(target: ZendoObject, relatives: list[ZendoObject]):
     pass
+
 
 def check_beneath(object: ZendoObject):
     beneath_objects = []
@@ -37,7 +38,6 @@ def check_beneath(object: ZendoObject):
             beneath_objects.append(obj)
 
     return beneath_objects
-
 
 
 def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
@@ -86,4 +86,30 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
 
     if face == "top":
         object_1.grounded = False
+
+
+def rel_nested(object_1: Pyramid, object_2: ZendoObject):
+    """
+    Nests object_1 inside object_2, only pyramids can be nested inside other objects
+
+    :param object_1: Blender object to nest.
+    :param object_2: Blender object to nest inside.
+    """
+    # Move the second object inside the first one
+    obj_1_pos = object_1.get_position()
+    object_2.set_position(obj_1_pos)
+
+    # Apply the same rotation to the second object
+    obj_1_rot = object_1.obj.rotation_quaternion
+    object_2.set_rotation_quaternion(obj_1_rot)
+    top_vector = object_1.get_top_vector()
+
+    # Move the second object alongside the top vector for offset
+    scaled_vector = top_vector * 0.4
+    object_2.move(scaled_vector)
+
+    # Update properties of object to reflect relation
+    object_1.nested = object_2
+    object_2.nests = object_1
+
 

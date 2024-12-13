@@ -51,6 +51,7 @@ class ZendoObject:
             'top': None,
             'bottom': None,
         }
+        self.nests = None
 
         self.rays = []
         ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
@@ -98,8 +99,7 @@ class ZendoObject:
                 f"Valid poses are: {[p for p in self.__class__.poses]}"
             )
 
-
-    def set_rotation(self, axis: str, rad: float):
+    def rotate(self, axis: str, rad: float):
         self.obj.rotation_mode = "QUATERNION"
         if axis.upper() == 'X':
             rotation = Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(rad))
@@ -115,12 +115,19 @@ class ZendoObject:
         self.set_to_ground()
         bpy.context.view_layer.update()
 
+    def set_rotation_quaternion(self, rotation: Quaternion):
+        self.obj.rotation_mode = "QUATERNION"
+        self.obj.rotation_quaternion = rotation
+
     def rotate_z(self, rad: float):
         self.obj.rotation_mode = "QUATERNION"
         rotation = Quaternion(Vector((0, 0, 1)), math.radians(rad))
         self.obj.rotation_quaternion = rotation @ self.obj.rotation_quaternion
         self.set_to_ground()
         bpy.context.view_layer.update()
+
+    def move(self, vec: Vector):
+        self.obj.location += vec
 
     def set_color(self, color: list[float]):
         r, g, b, a = color
@@ -177,10 +184,33 @@ class ZendoObject:
 class Pyramid(ZendoObject):
     poses = {
         "upright": Quaternion(Vector((0.0, 0.0, 0.0)), math.radians(0)),
-        "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(110))
+        "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
+
     def __init__(self, args, scale: float, color: list[float], pose: str):
         super(Pyramid, self).__init__(args, "Pyramid", scale, color, pose)
+        self.nested = None
+
+    def get_top_vector(self):
+        # Access the object's mesh data
+        mesh = self.obj.data
+
+        # Ensure the object's data is up to date
+        bpy.context.view_layer.update()
+
+        # Find the top vertex by searching for the highest Z-coordinate in local space
+        top_vertex = max(mesh.vertices, key=lambda v: v.co.z)
+
+        # Transform the top vertex to world space
+        top_world = self.obj.matrix_world @ top_vertex.co
+
+        # The object's origin is at (0, 0, 0) in its local space
+        origin_world = self.obj.matrix_world @ mathutils.Vector((0, 0, 0))
+
+        # Create a vector from the origin to the top vertex
+        vector_to_top = top_world - origin_world
+
+        return vector_to_top
 
 
 class Block(ZendoObject):
@@ -189,6 +219,7 @@ class Block(ZendoObject):
         "upside_down": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(180)),
         "flat": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(90))
     }
+
     def __init__(self, args, scale: float, color: list[float], pose: str):
         super(Block, self).__init__(args, "Block", scale, color, pose)
 
@@ -197,8 +228,9 @@ class Wedge(ZendoObject):
     poses = {
         "upright": Quaternion(Vector((0.0, 0.0, 0.0)), math.radians(0)),
         "cheesecake": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(90)),
-        "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(112))
+        "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
+
     def __init__(self, args, scale: float, color: list[float], pose: str):
         super(Wedge, self).__init__(args, "Wedge", scale, color, pose)
 
