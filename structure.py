@@ -88,28 +88,33 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
         object_1.grounded = False
 
 
-def rel_nested(object_1: Pyramid, object_2: ZendoObject):
+def rel_nested(object_1: ZendoObject, object_2: Pyramid):
     """
-    Nests object_1 inside object_2, only pyramids can be nested inside other objects
+    Nests object_2 inside object_1, only pyramids can be nested inside other objects
 
-    :param object_1: Blender object to nest.
-    :param object_2: Blender object to nest inside.
+    :param object_1: Blender object to nest inside.
+    :param object_2: Blender object to nest.
     """
-    # Move the second object inside the first one
-    obj_1_pos = object_1.get_position()
-    object_2.set_position(obj_1_pos)
+    # Move the first object inside the second one
+    obj_2_pos = object_2.get_position()
+    object_1.set_position(obj_2_pos)
 
-    # Apply the same rotation to the second object
-    obj_1_rot = object_1.obj.rotation_quaternion
-    object_2.set_rotation_quaternion(obj_1_rot)
-    top_vector = object_1.get_top_vector()
+    # Apply the same rotation to the first object
+    obj_2_rot = object_2.obj.rotation_quaternion
+    object_1.set_rotation_quaternion(obj_2_rot)
+    top_vector = object_2.get_top_vector()
 
-    # Move the second object alongside the top vector for offset
+    # Move the first object alongside the top vector for offset
     scaled_vector = top_vector * 0.4
-    object_2.move(scaled_vector)
+    object_1.move(scaled_vector)
 
-    # Update properties of object to reflect relation
-    object_1.nested = object_2
-    object_2.nests = object_1
+    # Update properties of objects to reflect relation
+    object_2.nested = object_1
+    object_1.nests = object_2
+    object_2.touching["top"] = object_1
+    object_1.touching["bottom"] = object_2
+    #object_1.set_to_ground()
 
 
+def rel_weird(object_1: ZendoObject, object_2: ZendoObject, face: str):
+    pass

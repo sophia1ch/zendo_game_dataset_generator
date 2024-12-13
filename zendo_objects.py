@@ -70,7 +70,6 @@ class ZendoObject:
         self.set_to_ground()
         self.update_rays(pose)
         bpy.context.view_layer.update()
-        print("test")
 
     def set_position(self, position: Vector):
         self.obj.location = position
@@ -90,7 +89,9 @@ class ZendoObject:
         bottom_p = min(transformed_vertices, key=lambda p: p.z)
         # top_p = max(transformed_vertices, key=lambda p: p.z)
         center_z = self.obj.location.z
-        self.obj.location.z = center_z - bottom_p.z
+        ground_ofset = center_z - bottom_p.z
+        self.obj.location.z = ground_ofset
+        return ground_ofset
 
     def check_pose(self, pose):
         if pose not in self.__class__.poses:
