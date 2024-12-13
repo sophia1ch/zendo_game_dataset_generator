@@ -1,8 +1,9 @@
 import bpy
 import mathutils
 from mathutils import Vector
-from zendo_objects import ZendoObject, Pyramid
+from zendo_objects import ZendoObject, Pyramid, Block, Wedge
 import math
+import copy
 
 face_map = {
         "front": ('X', 1),
@@ -12,10 +13,6 @@ face_map = {
         "top": ('Z', 1),
         "bottom": ('Z', -1),
     }
-
-
-def rel_pointing(target: ZendoObject, relatives: list[ZendoObject]):
-    pass
 
 
 def check_beneath(object: ZendoObject):
@@ -118,3 +115,42 @@ def rel_nested(object_1: ZendoObject, object_2: Pyramid):
 
 def rel_weird(object_1: ZendoObject, object_2: ZendoObject, face: str):
     pass
+
+
+def rel_pointing(object_1: ZendoObject, target: ZendoObject):
+    """
+    Points object_1 towards object_2
+
+    :param object_1: Blender object to point towards object_2.
+    :param object_2: Blender object 2.
+    """
+    # Ensure the scene is updated
+    bpy.context.view_layer.update()
+
+
+    origin = object_1.obj.matrix_world.translation
+
+    tip_vector = object_1.get_top_vector().normalized()
+    tip_vector_xy = Vector((tip_vector.x, tip_vector.y, 0)).normalized()
+
+    target_position = copy.deepcopy(target.obj.matrix_world.translation)
+    target_direction_xy = mathutils.Vector((target_position.x - origin.x,
+                                            target_position.y - origin.y,
+                                            0)).normalized()
+
+    # Compute the rotation angle in the XY plane
+    rotation_angle = tip_vector_xy.angle(target_direction_xy)
+
+    # Determine the rotation direction (clockwise or counterclockwise)
+    cross_z = tip_vector_xy.cross(target_direction_xy).z
+    if cross_z < 0:
+        rotation_angle = -rotation_angle
+
+    # Create a quaternion for rotation around the world Z-axis
+    rotation_quaternion = mathutils.Quaternion(Vector((0, 0, 1)), rotation_angle)
+
+    # Apply the rotation while preserving other rotations
+    object_1.obj.rotation_mode = 'QUATERNION'
+    object_1.obj.rotation_quaternion = rotation_quaternion @ object_1.obj.rotation_quaternion
+
+    object_1.pointing = target

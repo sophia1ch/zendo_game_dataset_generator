@@ -41,7 +41,6 @@ class ZendoObject:
         self.pose = pose
         self.set_color(color)
         self.set_pose(pose)
-        self.set_to_ground()
         self.grounded = True
         self.touching = {
             'left': None,
@@ -52,6 +51,7 @@ class ZendoObject:
             'bottom': None,
         }
         self.nests = None
+        self.pointing = None
 
         self.rays = []
         ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
@@ -223,6 +223,15 @@ class Block(ZendoObject):
 
     def __init__(self, args, scale: float, color: list[float], pose: str):
         super(Block, self).__init__(args, "Block", scale, color, pose)
+
+    def get_top_vector(self):
+        bpy.context.view_layer.update()
+        mesh = self.obj.data
+        world_matrix = self.obj.matrix_world
+        # Find the top vertex by searching for the highest Z-coordinate in local space
+        highest_vertex = max(mesh.vertices, key=lambda v: (world_matrix @ v.co).z)
+
+        return (world_matrix @ highest_vertex.co) - self.obj.matrix_world.translation
 
 
 class Wedge(ZendoObject):
