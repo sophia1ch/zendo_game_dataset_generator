@@ -9,7 +9,7 @@ def generate_scene():
 
     #query = "generate_valid_structure([exactly(red,3,Structure)], Structure)"
     #query = "generate_valid_structure([and([exactly(red,1,Structure), exactly(blue,1,Structure), exactly(yellow,1,Structure), exactly(flat,3,Structure)])], Structure)"
-    query = "generate_valid_structure([at_least(red, flat, 3, Structure)], Structure)"
+    query = "generate_valid_structure([at_least_interaction(block, blue, on_top_of, 3, Structure)], Structure)"
     # Execute the query
     results = []
     for _ in range(100):

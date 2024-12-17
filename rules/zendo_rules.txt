@@ -6,62 +6,64 @@ A structure must contain QUANTITY
 
 QUANTITY:
 at least ...
-    at least NUMBER COLOR pieces OPERATION
-    at least NUMBER ORIENTATION pieces OPERATION
-    at least NUMBER SHAPE pieces OPERATION
-    at least NUMBER COLOR SHAPE pieces
-    at least NUMBER ORIENTATION SHAPE pieces
-    at least NUMBER COLOR ORIENTATION pieces
+✔    at least NUMBER COLOR pieces OPERATION
+✔    at least NUMBER ORIENTATION pieces OPERATION
+✔    at least NUMBER SHAPE pieces OPERATION
+✔    at least NUMBER COLOR SHAPE pieces
+✔    at least NUMBER ORIENTATION SHAPE pieces
+✔    at least NUMBER COLOR ORIENTATION pieces
     at least NUMBER SHAPE pieces INTERACTION
     at least NUMBER ORIENTATION pieces INTERACTION
     at least NUMBER COLOR pieces INTERACTION
 exactly ...
-    exactly NUMBER COLOR pieces OPERATION
-    exactly NUMBER ORIENTATION pieces OPERATION
-    exactly NUMBER SHAPE pieces OPERATION
-    exactly NUMBER COLOR SHAPE pieces
-    exactly NUMBER ORIENTATION SHAPE pieces
-    exactly NUMBER COLOR ORIENTATION pieces
+✔    exactly NUMBER COLOR pieces OPERATION
+✔    exactly NUMBER ORIENTATION pieces OPERATION
+✔    exactly NUMBER SHAPE pieces OPERATION
+✔    exactly NUMBER COLOR SHAPE pieces
+✔    exactly NUMBER ORIENTATION SHAPE pieces
+✔    exactly NUMBER COLOR ORIENTATION pieces
     exactly NUMBER SHAPE pieces INTERACTION
     exactly NUMBER COLOR pieces INTERACTION
     exactly NUMBER ORIENTATION pieces INTERACTION
 more ... pieces than ...
-    more SHAPE pieces than SHAPE pieces
-    more COLOR pieces than SHAPE pieces
-    more ORIENTATION pieces than SHAPE pieces
-    more COLOR pieces than COLOR pieces
-    more SHAPE pieces than COLOR pieces
-    more ORIENTATION pieces than COLOR pieces
-    more ORIENTATION pieces than ORIENTATION pieces
-    more SHAPE pieces than ORIENTATION pieces
-    more COLOR pieces than ORIENTATION pieces
+✔    more SHAPE pieces than SHAPE pieces
+✔    more COLOR pieces than SHAPE pieces
+✔    more ORIENTATION pieces than SHAPE pieces
+✔    more COLOR pieces than COLOR pieces
+✔    more SHAPE pieces than COLOR pieces
+✔    more ORIENTATION pieces than COLOR pieces
+✔    more ORIENTATION pieces than ORIENTATION pieces
+✔    more SHAPE pieces than ORIENTATION pieces
+✔    more COLOR pieces than ORIENTATION pieces
 an odd number of ...
-    an odd number of total pieces
-    an odd number of COLOR pieces OPERATION
-    an odd number of ORIENTATION pieces OPERATION
-    an odd number of SHAPE pieces OPERATION
+✔    an odd number of total pieces
+✔    an odd number of COLOR pieces OPERATION
+✔    an odd number of ORIENTATION pieces OPERATION
+✔    an odd number of SHAPE pieces OPERATION
     an odd number of SHAPE pieces INTERACTION
 an even number of ...
-    an even number of total pieces
-    an even number of COLOR pieces OPERATION
-    an even number of ORIENTATION pieces OPERATION
-    an even number of SHAPE pieces OPERATION
+✔    an even number of total pieces
+✔    an even number of COLOR pieces OPERATION
+✔    an even number of ORIENTATION pieces OPERATION
+✔    an even number of SHAPE pieces OPERATION
     an even number of SHAPE pieces INTERACTION
-either NUMBER or NUMBER of total pieces
+either ... or ...
+✔    either NUMBER or NUMBER of total pieces
+
 
 OPERATION:
-and QUANTITY
-or QUANTITY
-none
+✔ and QUANTITY
+✔ or QUANTITY
+✔ none
 
 INTERACTION:
+✔ grounded pieces (only rule, where the interaction is an attribute)
 touching a SHAPE piece
-grounded pieces
+touching a COLOR piece
+touching a ORIENTATION piece
 pointing at a SHAPE piece
 on top of another SHAPE piece
-// more complex (more than two random attributes) not in json included!
-touching QUANTITY SHAPE pieces
-pointing at QUANTITY SHAPE pieces
+
 
 
 // Attributes
