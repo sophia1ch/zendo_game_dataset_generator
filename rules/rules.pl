@@ -1,5 +1,6 @@
 :- use_module(library(apply)). % for include/3
 
+%%% Facts %%%
 orientation(flat).
 orientation(vertical).
 orientation(upright).
@@ -15,6 +16,15 @@ shape(wedge).
 shape(block).
 
 max_items(7).
+
+
+
+%%% Generating %%%
+% Generate repeatedly until a structure satisfies all checks (main function)
+generate_valid_structure(Checks, Structure) :-
+    repeat,
+    generate_structure(Structure),
+    (and(Checks) -> !; fail).
 
 % Generate a random structure
 generate_structure(Structure) :-
@@ -47,57 +57,77 @@ count_attribute(Attr, Structure, Count) :-
     include(has_attribute(Attr), Structure, Filtered),
     length(Filtered, Count).
 
+% Count items with multiple attributes
+count_multiple_attributes(Attr1, Attr2, Structure, Count) :-
+    include(has_attributes(Attr1, Attr2), Structure, Filtered),
+    length(Filtered, Count).
+
 has_attribute(Attr, item(Attr,_,_)).
 has_attribute(Attr, item(_,Attr,_)).
 has_attribute(Attr, item(_,_,Attr)).
 
+has_attributes(Attr1, Attr2, item(Attr1, Attr2, _)).
+has_attributes(Attr1, Attr2, item(Attr1, _, Attr2)).
+has_attributes(Attr1, Attr2, item(_, Attr1, Attr2)).
+has_attributes(Attr1, Attr2, item(Attr2, Attr1, _)).
+has_attributes(Attr1, Attr2, item(Attr2, _, Attr1)).
+has_attributes(Attr1, Attr2, item(_, Attr2, Attr1)).
+
+
+%%% Rules %%%
 % Check predicates (pure checks, no generation)
-check_at_least(Attr, N, Structure) :-
+at_least(Attr, N, Structure) :-
     count_attribute(Attr, Structure, Count),
     Count >= N.
+% Rules like: "... contains at least one green pyramid."
+at_least(Attr1, Attr2, N, Structure) :-
+    count_multiple_attributes(Attr1, Attr2, Structure, Count),
+    Count >= N.
 
-check_exactly(Attr, N, Structure) :-
+exactly(Attr, N, Structure) :-
     count_attribute(Attr, Structure, Count),
     Count =:= N.
+exactly(Attr1, Attr2, N, Structure) :-
+    count_multiple_attributes(Attr1, Attr2, Structure, Count),
+    Count =:= N.
 
-check_more_than(A1, A2, Structure) :-
+more_than(A1, A2, Structure) :-
     count_attribute(A1, Structure, C1),
     count_attribute(A2, Structure, C2),
     C1 > C2.
 
-check_odd_number_of(Structure) :-
+% Odd number of total pieces
+odd_number_of(Structure) :-
     length(Structure, L),
     1 is L mod 2.
 
-check_even_number_of(Structure) :-
+% Even number of total pieces
+even_number_of(Structure) :-
     length(Structure, L),
     0 is L mod 2.
 
-check_odd_number_of(Attr, Structure) :-
+% Odd number of specific pieces
+odd_number_of(Attr, Structure) :-
     count_attribute(Attr, Structure, Count),
     1 is Count mod 2.
 
-check_even_number_of(Attr, Structure) :-
+% Even number of specific pieces
+even_number_of(Attr, Structure) :-
     count_attribute(Attr, Structure, Count),
     0 is Count mod 2.
 
-check_either_or(N1, N2, Structure) :-
+either_or(N1, N2, Structure) :-
     length(Structure, L),
     (L =:= N1; L =:= N2).
 
 % Logical combination of checks
-and_checks([]).
-and_checks([Check|Cs]) :-
+and([]).
+and([Check|Cs]) :-
     call(Check),
-    and_checks(Cs).
+    and(Cs).
 
-or_checks([Check|_]) :-
+or([Check|_]) :-
     call(Check).
-or_checks([_|Cs]) :-
-    or_checks(Cs).
+or([_|Cs]) :-
+    or(Cs).
 
-% Generate repeatedly until a structure satisfies all checks
-generate_valid_structure(Checks, Structure) :-
-    repeat,
-    generate_structure(Structure),
-    (and_checks(Checks) -> !; fail).
