@@ -312,7 +312,9 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
                         pass
                     else:
                         parse_match, remaining_rule = parse_match
-                        nodes.append(parse_match)
+                        # TODO(kilian): Prevent this from happening somewhere else?
+                        if test_template.template != "none":
+                            nodes.append(parse_match)
                         found_any = True
                         break
                 else:
@@ -396,8 +398,8 @@ def rule_to_prolog(root: RuleNode):
     return f"or({x})" if len(op_free_prologs) > 1 else x
 
 def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate) -> str:
-    
     root = parse_rule_text(rules, rule, starting_template)
+    #print_rule_nodes(root)
     return rule_to_prolog(root)
 
 if __name__ == "__main__":
@@ -405,13 +407,14 @@ if __name__ == "__main__":
     starting_template = template_from_text(rules, "A structure must contain QUANTITY")
 
     # TODO(kilian): ????
-    # rule = "A structure must contain an odd number of total pieces"
+    #rule = "A structure must contain an odd number of total pieces"
+    #rule = "A structure must contain an odd number of block pieces" for none TODO above
 
     #rule = "A structure must contain at least 0 vertical pyramid pieces"
     #rule = "A structure must contain at least 2 wedge pieces or an even number of upright pieces and exactly 2 upright pieces touching a pyramid piece"
     rule = random_rule(rules, starting_template)
     print("Rule:", rule)
-    
+
     prolog = rule_text_to_prolog(rules, rule, starting_template)
     print("Prolog:", prolog)
         
