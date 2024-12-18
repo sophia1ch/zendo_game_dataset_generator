@@ -10,10 +10,11 @@ import numpy as np
 import random
 
 import zendo_objects
-from blender_objects import blender_obj, check_collision, set_random_position, place_ontop
+
 
 import utils
 from zendo_objects import *
+from generate import generate_structure
 
 
 def main(args):
@@ -27,8 +28,11 @@ def main(args):
     #######################################################
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
-    object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
 
+    example_string = "['item(3, red, pyramid, upright, inside(1))', 'item(2, red, wedge, upright, grounded)', 'item(1, blue, block, flat, pointing(3))', 'item(0, red, block, flat, on_top_of(1))']"
+    generate_structure(args, example_string)
+
+    """
     block = zendo_objects.Block(args, 1.0, object_colors["black"], "upright")
 
     pyr1 = zendo_objects.Block(args, 1.0, object_colors["red"], "flat")
@@ -49,7 +53,7 @@ def main(args):
     rel_pointing(pyr3, block)
     rel_pointing(pyr4, block)
     rel_pointing(pyr5, block)
-    rel_pointing(pyr6, block)
+    rel_pointing(pyr6, block)"""
 
 
 
