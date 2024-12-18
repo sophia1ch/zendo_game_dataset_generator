@@ -1,10 +1,12 @@
 :- use_module(library(apply)).
 
 %%% Facts %%%
-orientation(flat).
 orientation(vertical).
+orientation(flat).
 orientation(upright).
-orientation(weird).
+orientation(upside_down).
+orientation(cheesecake).
+%orientation(weird).
 
 color(blue).
 color(yellow).
@@ -20,7 +22,7 @@ interaction(pointing(_)).
 interaction(on_top_of(_)).
 interaction(inside(_)).
 
-max_items(5).
+max_items(7).
 
 
 
@@ -41,7 +43,7 @@ generate_items(N, TotalN, [item(Id,C,S,O,I)|Rest]) :-
     Id is N - 1,
     random_color(C),
     random_shape(S),
-    random_orientation(O),
+    random_orientation(S, O),
     MaxId is TotalN - 1,
     random_interaction(MaxId, Id, I),
     N1 is N - 1,
@@ -55,9 +57,15 @@ random_shape(Shape) :-
     findall(S, shape(S), Shapes),
     random_member(Shape, Shapes).
 
-random_orientation(Orientation) :-
-    findall(O, orientation(O), Orientations),
-    random_member(Orientation, Orientations).
+random_orientation(Shape, Orientation) :-
+    %findall(O, orientation(O), Orientations),
+    % exclude specific cases for the different shapes
+    findall(O, (orientation(O), (
+        (Shape = block, O \= cheesecake);
+        (Shape = wedge, O \= upside_down);
+        (Shape = pyramid, O \= cheesecake, O \= upside_down)
+    )), ValidOrientations),
+    random_member(Orientation, ValidOrientations).
 
 random_interaction(MaxId, Id, Interaction) :-
     findall(I, interaction(I), Interactions),
