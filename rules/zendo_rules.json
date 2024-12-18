@@ -3,180 +3,221 @@
     "at least": [
       {
         "template": "at least {NUMBER} {COLOR} pieces {OPERATION}",
-        "placeholders": ["NUMBER", "COLOR", "OPERATION"]
+        "placeholders": ["NUMBER", "COLOR", "OPERATION"],
+        "prolog": ["at_least"]
       },
       {
         "template": "at least {NUMBER} {ORIENTATION} pieces {OPERATION}",
-        "placeholders": ["NUMBER", "ORIENTATION", "OPERATION"]
+        "placeholders": ["NUMBER", "ORIENTATION", "OPERATION"],
+        "prolog": ["at_least"]
       },
       {
         "template": "at least {NUMBER} {SHAPE} pieces {OPERATION}",
-        "placeholders": ["NUMBER", "SHAPE", "OPERATION"]
+        "placeholders": ["NUMBER", "SHAPE", "OPERATION"],
+        "prolog": ["at_least"]
       },
       {
-        "template": "at least {NUMBER} {COLOR} {SHAPE} pieces ",
-        "placeholders": ["NUMBER", "COLOR", "SHAPE"]
+        "template": "at least {NUMBER} {COLOR} {SHAPE} pieces",
+        "placeholders": ["NUMBER", "COLOR", "SHAPE"],
+        "prolog": ["at_least"]
       },
       {
-        "template": "at least {NUMBER} {ORIENTATION} {SHAPE} pieces ",
-        "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"]
+        "template": "at least {NUMBER} {ORIENTATION} {SHAPE} pieces",
+        "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"],
+        "prolog": ["at_least"]
       },
       {
-        "template": "at least {NUMBER} {COLOR} {ORIENTATION} pieces ",
-        "placeholders": ["NUMBER", "COLOR", "ORIENTATION"]
+        "template": "at least {NUMBER} {COLOR} {ORIENTATION} pieces",
+        "placeholders": ["NUMBER", "COLOR", "ORIENTATION"],
+        "prolog": ["at_least"]
       },
       {
         "template": "at least {NUMBER} {SHAPE} pieces {INTERACTION}",
-        "placeholders": ["NUMBER", "SHAPE", "INTERACTION"]
+        "placeholders": ["NUMBER", "SHAPE", "INTERACTION"],
+        "prolog": ["at_least_interaction"]
       },
       {
         "template": "at least {NUMBER} {COLOR} pieces {INTERACTION}",
-        "placeholders": ["NUMBER", "COLOR", "INTERACTION"]
+        "placeholders": ["NUMBER", "COLOR", "INTERACTION"],
+        "prolog": ["at_least_interaction"]
       },
       {
         "template": "at least {NUMBER} {ORIENTATION} pieces {INTERACTION}",
-        "placeholders": ["NUMBER", "ORIENTATION", "INTERACTION"]
+        "placeholders": ["NUMBER", "ORIENTATION", "INTERACTION"],
+        "prolog": ["at_least_interaction"]
       }
     ],
     "exactly": [
       {
         "template": "exactly {NUMBER} {COLOR} pieces {OPERATION}",
-        "placeholders": ["NUMBER", "COLOR", "OPERATION"]
+        "placeholders": ["NUMBER", "COLOR", "OPERATION"],
+        "prolog": ["exactly"]
       },
       {
         "template": "exactly {NUMBER} {ORIENTATION} pieces {OPERATION}",
-        "placeholders": ["NUMBER", "ORIENTATION", "OPERATION"]
+        "placeholders": ["NUMBER", "ORIENTATION", "OPERATION"],
+        "prolog": ["exactly"]
       },
       {
         "template": "exactly {NUMBER} {SHAPE} pieces {OPERATION}",
-        "placeholders": ["NUMBER", "SHAPE", "OPERATION"]
+        "placeholders": ["NUMBER", "SHAPE", "OPERATION"],
+        "prolog": ["exactly"]
       },
       {
         "template": "exactly {NUMBER} {COLOR} {SHAPE} pieces",
-        "placeholders": ["NUMBER", "COLOR", "SHAPE"]
+        "placeholders": ["NUMBER", "COLOR", "SHAPE"],
+        "prolog": ["exactly"]
       },
       {
         "template": "exactly {NUMBER} {ORIENTATION} {SHAPE} pieces",
-        "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"]
+        "placeholders": ["NUMBER", "ORIENTATION", "SHAPE"],
+        "prolog": ["exactly"]
       },
       {
         "template": "exactly {NUMBER} {COLOR} {ORIENTATION} pieces",
-        "placeholders": ["NUMBER", "COLOR", "ORIENTATION"]
+        "placeholders": ["NUMBER", "COLOR", "ORIENTATION"],
+        "prolog": ["exactly"]
       },
       {
         "template": "exactly {NUMBER} {SHAPE} pieces {INTERACTION}",
-        "placeholders": ["NUMBER", "SHAPE", "INTERACTION"]
+        "placeholders": ["NUMBER", "SHAPE", "INTERACTION"],
+        "prolog": ["exactly_interaction"]
       },
       {
         "template": "exactly {NUMBER} {COLOR} pieces {INTERACTION}",
-        "placeholders": ["NUMBER", "COLOR", "INTERACTION"]
+        "placeholders": ["NUMBER", "COLOR", "INTERACTION"],
+        "prolog": ["exactly_interaction"]
       },
       {
         "template": "exactly {NUMBER} {ORIENTATION} pieces {INTERACTION}",
-        "placeholders": ["NUMBER", "ORIENTATION", "INTERACTION"]
+        "placeholders": ["NUMBER", "ORIENTATION", "INTERACTION"],
+        "prolog": ["exactly_interaction"]
       }
     ],
     "more pieces than": [
       {
         "template": "more {SHAPE} pieces than {SHAPE} pieces",
-        "placeholders": ["SHAPE"]
+        "placeholders": ["SHAPE"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {COLOR} pieces than {SHAPE} pieces",
-        "placeholders": ["COLOR", "SHAPE"]
+        "placeholders": ["COLOR", "SHAPE"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {ORIENTATION} pieces than {SHAPE} pieces",
-        "placeholders": ["ORIENTATION", "SHAPE"]
+        "placeholders": ["ORIENTATION", "SHAPE"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {COLOR} pieces than {COLOR} pieces",
-        "placeholders": ["COLOR"]
+        "placeholders": ["COLOR"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {SHAPE} pieces than {COLOR} pieces",
-        "placeholders": ["SHAPE", "COLOR"]
+        "placeholders": ["SHAPE", "COLOR"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {ORIENTATION} pieces than {COLOR} pieces",
-        "placeholders": ["ORIENTATION", "COLOR"]
+        "placeholders": ["ORIENTATION", "COLOR"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {ORIENTATION} pieces than {ORIENTATION} pieces",
-        "placeholders": ["ORIENTATION"]
+        "placeholders": ["ORIENTATION"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {SHAPE} pieces than {ORIENTATION} pieces",
-        "placeholders": ["SHAPE", "ORIENTATION"]
+        "placeholders": ["SHAPE", "ORIENTATION"],
+        "prolog": ["more_than"]
       },
       {
         "template": "more {COLOR} pieces than {ORIENTATION} pieces",
-        "placeholders": ["COLOR", "ORIENTATION"]
+        "placeholders": ["COLOR", "ORIENTATION"],
+        "prolog": ["more_than"]
       }
     ],
     "an odd number of": [
       {
         "template": "an odd number of total pieces",
-        "placeholders": []
+        "placeholders": [],
+        "prolog": ["odd_number_of"]
       },
       {
         "template": "an odd number of {COLOR} pieces {OPERATION}",
-        "placeholders": ["COLOR", "OPERATION"]
+        "placeholders": ["COLOR", "OPERATION"],
+        "prolog": ["odd_number_of"]
       },
       {
         "template": "an odd number of {ORIENTATION} pieces {OPERATION}",
-        "placeholders": ["ORIENTATION", "OPERATION"]
+        "placeholders": ["ORIENTATION", "OPERATION"],
+        "prolog": ["odd_number_of"]
       },
       {
         "template": "an odd number of {SHAPE} pieces {OPERATION}",
-        "placeholders": ["SHAPE", "OPERATION"]
+        "placeholders": ["SHAPE", "OPERATION"],
+        "prolog": ["odd_number_of"]
       },
       {
         "template": "an odd number of {SHAPE} pieces {INTERACTION}",
-        "placeholders": ["SHAPE", "INTERACTION"]
+        "placeholders": ["SHAPE", "INTERACTION"],
+        "prolog": ["odd_number_of"]
       }
     ],
     "an even number of": [
       {
         "template": "an even number of total pieces",
-        "placeholders": []
+        "placeholders": [],
+        "prolog": ["even_number_of"]
       },
       {
         "template": "an even number of {COLOR} pieces {OPERATION}",
-        "placeholders": ["COLOR", "OPERATION"]
+        "placeholders": ["COLOR", "OPERATION"],
+        "prolog": ["even_number_of"]
       },
       {
         "template": "an even number of {ORIENTATION} pieces {OPERATION}",
-        "placeholders": ["ORIENTATION", "OPERATION"]
+        "placeholders": ["ORIENTATION", "OPERATION"],
+        "prolog": ["even_number_of"]
       },
       {
         "template": "an even number of {SHAPE} pieces {OPERATION}",
-        "placeholders": ["SHAPE", "OPERATION"]
+        "placeholders": ["SHAPE", "OPERATION"],
+        "prolog": ["even_number_of"]
       },
       {
         "template": "an even number of {SHAPE} pieces {INTERACTION}",
-        "placeholders": ["SHAPE", "INTERACTION"]
+        "placeholders": ["SHAPE", "INTERACTION"],
+        "prolog": ["even_number_of"]
       }
     ],
     "either": [
       {
         "template": "either {NUMBER} or {NUMBER} of total pieces",
-        "placeholders": ["NUMBER"]
+        "placeholders": ["NUMBER"],
+        "prolog": ["either_or"]
       }
     ]
   },
   "OPERATION": [
     {
       "template": "and {QUANTITY}",
-      "placeholders": ["QUANTITY"]
+      "placeholders": ["QUANTITY"],
+      "prolog": ["and"]
     },
     {
       "template": "or {QUANTITY}",
-      "placeholders": ["QUANTITY"]
+      "placeholders": ["QUANTITY"],
+      "prolog": ["or"]
     },
     {
       "template": "none",
-      "placeholders": []
+      "placeholders": [],
+      "prolog": [""]
     }
   ],
   "INTERACTION": [
