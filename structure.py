@@ -4,6 +4,7 @@ from mathutils import Vector
 from zendo_objects import ZendoObject, Pyramid, Block, Wedge
 import math
 import copy
+import random
 
 face_map = {
         "front": ('X', 1),
@@ -13,7 +14,6 @@ face_map = {
         "top": ('Z', 1),
         "bottom": ('Z', -1),
     }
-
 
 def check_beneath(object: ZendoObject):
     beneath_objects = []
@@ -37,7 +37,7 @@ def check_beneath(object: ZendoObject):
     return beneath_objects
 
 
-def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
+def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left'):
     """
     Place object_1 against object_2 along the specified axis.
 
@@ -77,15 +77,12 @@ def rel_touching(object_1: ZendoObject, object_2: ZendoObject, face: str):
 
     # Move object_1 to touch object_2
     object_1.obj.location[axis_index] += offset
-    object_2.set_touching(face, object_1)
-    object_1_face = list(face_map.keys())[list(face_map.values()).index((axis, direction*(-1)))]
-    object_1.set_touching(object_1_face, object_2)
 
     if face == "top":
         object_1.grounded = False
 
 
-def rel_nested(object_1: ZendoObject, object_2: Pyramid):
+def nested(object_1: ZendoObject, object_2: Pyramid):
     """
     Nests object_2 inside object_1, only pyramids can be nested inside other objects
 
@@ -113,11 +110,11 @@ def rel_nested(object_1: ZendoObject, object_2: Pyramid):
     #object_1.set_to_ground()
 
 
-def rel_weird(object_1: ZendoObject, object_2: ZendoObject, face: str):
+def weird(object_1: ZendoObject, object_2: ZendoObject, face: str):
     pass
 
 
-def rel_pointing(object_1: ZendoObject, target: ZendoObject):
+def pointing(object_1: ZendoObject, target: ZendoObject):
     """
     Points object_1 towards object_2
 

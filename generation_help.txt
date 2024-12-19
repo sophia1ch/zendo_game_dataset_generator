@@ -1,0 +1,7 @@
+PLACE ANCHOR at (0, 0, 0) # Grounded object with lowest ID
+
+PLACE all grounded objects randomly with colision check inside a definded radius
+
+PLACE all related objects with collision check in this order:
+-> TOUCHING:
+    -> TRY all faces of target in random order, if none is free backtrack to grounded placement and choose different random placements

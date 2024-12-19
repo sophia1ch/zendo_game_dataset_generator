@@ -8,18 +8,9 @@ from dataclasses import dataclass
 
 
 class ZendoObject:
-    @dataclass
-    class computed_values:
-        ground_radius: float
-        """The smallest distance from any vertex to the object center in the xy plane"""
-
-        local_top: float
-        """Max y of the object relative to its center"""
-
-        local_bottom: float
-        """Min y of the object relative to its center"""
+    instances = []
     poses = {}
-    def __init__(self, args, name: str, scale: float, color: list[float], pose: str = "upright"):
+    def __init__(self, args, idx: int, shape: str, color: list[float], pose: str = "upright"):
         """
         Initialize a Zendo object.
 
@@ -27,17 +18,23 @@ class ZendoObject:
         :param size: Size of the object (e.g., "small", "medium", "large").
         :param orientation: Orientation of the object, must be a value of Orientation.
         """
+
+        ZendoObject.instances.append(self)
+
         # Load object from file
-        filename = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object', name)
+        filename = os.path.join(args.shape_dir, '%s.blend' % shape.lower(), 'Object', shape)
         bpy.ops.wm.append(filename=filename)
         # Rename and set object
-        self.name = '%s_%d' % (name, get_object_count(name))
-        bpy.data.objects[name].name = self.name
-        self.obj = bpy.data.objects[self.name]
+        #self.name = '%s_%d' % (name, get_object_count(name))
+        unique_name = f"{idx}_{shape}"
+        bpy.data.objects[shape].name = unique_name
+        self.obj = bpy.data.objects[unique_name]
         self.material = self.obj.data.materials[0]
 
         self.args = args
-        self.type = name
+        self.shape = shape
+        self.idx = idx
+        self.name = unique_name
         self.pose = pose
         self.set_color(color)
         self.set_pose(pose)
@@ -54,7 +51,12 @@ class ZendoObject:
         self.pointing = None
 
         self.rays = []
-        ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
+        #ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
+
+    def remove(self):
+        objs = bpy.data.objects
+        objs.remove(objs[self.name], do_unlink=True)
+        ZendoObject.instances.remove(self)
 
     def set_touching(self, face: str, obj):
         self.touching[face] = obj
@@ -99,6 +101,10 @@ class ZendoObject:
                 f"{pose} is not a valid pose for {self.__class__.__name__}. "
                 f"Valid poses are: {[p for p in self.__class__.poses]}"
             )
+
+    def get_free_face(self):
+        avail = [f for f in self.touching if self.touching.get(f) is None and f not in ('top', 'bottom')]
+        return avail
 
     def rotate(self, axis: str, rad: float):
         self.obj.rotation_mode = "QUATERNION"
@@ -188,8 +194,8 @@ class Pyramid(ZendoObject):
         "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
 
-    def __init__(self, args, scale: float, color: list[float], pose: str):
-        super(Pyramid, self).__init__(args, "Pyramid", scale, color, pose)
+    def __init__(self, args, idx: int, color: list[float], pose: str):
+        super(Pyramid, self).__init__(args, idx,"Pyramid", color, pose)
         self.nested = None
 
     def get_top_vector(self):
@@ -221,8 +227,8 @@ class Block(ZendoObject):
         "flat": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(90))
     }
 
-    def __init__(self, args, scale: float, color: list[float], pose: str):
-        super(Block, self).__init__(args, "Block", scale, color, pose)
+    def __init__(self, args, idx: int, color: list[float], pose: str):
+        super(Block, self).__init__(args, idx,"Block", color, pose)
 
     def get_top_vector(self):
         bpy.context.view_layer.update()
@@ -241,8 +247,8 @@ class Wedge(ZendoObject):
         "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
 
-    def __init__(self, args, scale: float, color: list[float], pose: str):
-        super(Wedge, self).__init__(args, "Wedge", scale, color, pose)
+    def __init__(self, args, idx: int, color: list[float], pose: str):
+        super(Wedge, self).__init__(args, idx, "Wedge", color, pose)
 
     def update_rays(self, pose):
         pass
@@ -254,3 +260,7 @@ def get_object_count(name):
         if obj.name.startswith(name):
             count += 1
     return count
+
+def get_object(idx: int):
+    obj = [o for o in ZendoObject.instances if o.idx == idx][0]
+    return obj

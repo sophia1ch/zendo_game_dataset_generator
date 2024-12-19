@@ -29,35 +29,9 @@ def main(args):
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
 
-    example_string = "['item(3, red, pyramid, upright, inside(1))', 'item(2, red, wedge, upright, grounded)', 'item(1, blue, block, flat, pointing(3))', 'item(0, red, block, flat, on_top_of(1))']"
+    example_string = "['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, block, flat, touching(2))']"
+    #example_string = "['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(0, red, block, flat, touching(2))']"
     generate_structure(args, example_string)
-
-    """
-    block = zendo_objects.Block(args, 1.0, object_colors["black"], "upright")
-
-    pyr1 = zendo_objects.Block(args, 1.0, object_colors["red"], "flat")
-    pyr1.move(Vector((5, 0, 0)))
-    pyr2 = zendo_objects.Pyramid(args, 1.0, object_colors["blue"], "flat")
-    pyr2.move(Vector((2.5, 4.33, 0)))
-    pyr3 = zendo_objects.Pyramid(args, 1.0, object_colors["green"], "flat")
-    pyr3.move(Vector((-2.5, 4.33, 0)))
-    pyr4 = zendo_objects.Pyramid(args, 1.0, object_colors["brown"], "flat")
-    pyr4.move(Vector((-5, 0, 0)))
-    pyr5 = zendo_objects.Pyramid(args, 1.0, object_colors["purple"], "flat")
-    pyr5.move(Vector((-2.5, -4.33, 0)))
-    pyr6 = zendo_objects.Pyramid(args, 1.0, object_colors["cyan"], "flat")
-    pyr6.move(Vector((2.5, -4.33, 0)))
-
-    rel_pointing(pyr1, block)
-    rel_pointing(pyr2, block)
-    rel_pointing(pyr3, block)
-    rel_pointing(pyr4, block)
-    rel_pointing(pyr5, block)
-    rel_pointing(pyr6, block)"""
-
-
-
-
 
 
     #######################################################
