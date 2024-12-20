@@ -36,6 +36,20 @@ def check_beneath(object: ZendoObject):
 
     return beneath_objects
 
+def on_top(object_1: ZendoObject, target: ZendoObject):
+    """
+    Places object_1 ontop of object_2
+    :param object_1:
+    :param target:
+    """
+    bpy.context.view_layer.update()
+    if type(target) is Pyramid and object_1.pose == 'upright' and target.pose == 'upright':
+        nested(object_1, target)
+    else:
+        touching(object_1, target, face='top')
+
+
+
 
 def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left'):
     """
@@ -46,6 +60,7 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left'):
     :param face: The face of object_2 to align object_1 with as a string ('front', 'back', 'right', 'left', 'top').
     """
     # Ensure the requested face is valid
+    bpy.context.view_layer.update()
     if face not in face_map:
         raise ValueError(
             f"{face} is not a valid face! "
@@ -90,6 +105,7 @@ def nested(object_1: ZendoObject, object_2: Pyramid):
     :param object_2: Blender object to nest.
     """
     # Move the first object inside the second one
+    bpy.context.view_layer.update()
     obj_2_pos = object_2.get_position()
     object_1.set_position(obj_2_pos)
 
@@ -151,3 +167,4 @@ def pointing(object_1: ZendoObject, target: ZendoObject):
     object_1.obj.rotation_quaternion = rotation_quaternion @ object_1.obj.rotation_quaternion
 
     object_1.pointing = target
+    bpy.context.view_layer.update()

@@ -4,13 +4,15 @@ import bpy
 import mathutils
 from mathutils import Vector, Euler, Quaternion
 import numpy as np
+import utils
 from dataclasses import dataclass
 
 
 class ZendoObject:
     instances = []
     poses = {}
-    def __init__(self, args, idx: int, shape: str, color: list[float], pose: str = "upright"):
+
+    def __init__(self, args, idx: int, shape: str, color: str, pose: str = "upright"):
         """
         Initialize a Zendo object.
 
@@ -20,7 +22,8 @@ class ZendoObject:
         """
 
         ZendoObject.instances.append(self)
-
+        object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
+        color_code = object_colors[color]
         # Load object from file
         filename = os.path.join(args.shape_dir, '%s.blend' % shape.lower(), 'Object', shape)
         bpy.ops.wm.append(filename=filename)
@@ -32,11 +35,12 @@ class ZendoObject:
         self.material = self.obj.data.materials[0]
 
         self.args = args
-        self.shape = shape
+        self.shape = shape.lower()
         self.idx = idx
         self.name = unique_name
         self.pose = pose
-        self.set_color(color)
+        self.set_color(color_code)
+        self.color = color
         self.set_pose(pose)
         self.grounded = True
         self.touching = {
@@ -58,6 +62,9 @@ class ZendoObject:
         objs.remove(objs[self.name], do_unlink=True)
         ZendoObject.instances.remove(self)
 
+    def get_namestring(self):
+        return f"{self.color} {self.shape} {self.pose}"
+
     def set_touching(self, face: str, obj):
         self.touching[face] = obj
 
@@ -70,7 +77,6 @@ class ZendoObject:
         self.obj.rotation_quaternion = self.__class__.poses[pose]
         self.pose = pose
         self.set_to_ground()
-        self.update_rays(pose)
         bpy.context.view_layer.update()
 
     def set_position(self, position: Vector):
@@ -161,9 +167,6 @@ class ZendoObject:
         color_node.outputs[0].default_value = (r, g, b, a)
         # print(f"Setting color to: {r:.2f}, {g:.2f}, {b:.2f}, {a:.2f}")
 
-    def update_rays(self, pose):
-        pass
-
     def get_world_bounding_box(self):
         """
         Calculate the world-space bounding box of an object.
@@ -194,7 +197,7 @@ class Pyramid(ZendoObject):
         "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
 
-    def __init__(self, args, idx: int, color: list[float], pose: str):
+    def __init__(self, args, idx: int, color: str, pose: str):
         super(Pyramid, self).__init__(args, idx,"Pyramid", color, pose)
         self.nested = None
 
@@ -219,6 +222,13 @@ class Pyramid(ZendoObject):
 
         return vector_to_top
 
+    def get_rays(self):
+        mesh = self.obj.data
+        tip = max(mesh.vertices, key=lambda v: v.co.z)  # Highest vertex in local Z
+        origin = project_to_xy(self.obj.matrix_world @ tip.co)
+        direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
+        return origin, direction
+
 
 class Block(ZendoObject):
     poses = {
@@ -227,17 +237,15 @@ class Block(ZendoObject):
         "flat": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(90))
     }
 
-    def __init__(self, args, idx: int, color: list[float], pose: str):
+    def __init__(self, args, idx: int, color: str, pose: str):
         super(Block, self).__init__(args, idx,"Block", color, pose)
 
-    def get_top_vector(self):
-        bpy.context.view_layer.update()
+    def get_raycast(self):
         mesh = self.obj.data
-        world_matrix = self.obj.matrix_world
-        # Find the top vertex by searching for the highest Z-coordinate in local space
-        highest_vertex = max(mesh.vertices, key=lambda v: (world_matrix @ v.co).z)
-
-        return (world_matrix @ highest_vertex.co) - self.obj.matrix_world.translation
+        tip = max(mesh.vertices, key=lambda v: v.co.z)  # Highest vertex in local Z
+        origin = project_to_xy(self.obj.matrix_world @ tip.co)
+        direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
+        return None
 
 
 class Wedge(ZendoObject):
@@ -247,11 +255,30 @@ class Wedge(ZendoObject):
         "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
 
-    def __init__(self, args, idx: int, color: list[float], pose: str):
+    def __init__(self, args, idx: int, color: str, pose: str):
         super(Wedge, self).__init__(args, idx, "Wedge", color, pose)
 
-    def update_rays(self, pose):
-        pass
+    def get_raycast(self):
+        obj = self.obj
+
+        scene = bpy.context.scene
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+
+        top_edge_start = Vector((-obj.dimensions.x / 2, 0, obj.dimensions.z))
+        top_edge_end = Vector((obj.dimensions.x / 2, 0, obj.dimensions.z))
+
+        results = []
+        for local_point in [top_edge_start, top_edge_end]:
+            local_direction = Vector((0, 0, 1))
+            origin_world = obj.matrix_world @ local_point
+            direction_world = (obj.matrix_world.to_3x3() @ local_direction).normalized()
+            # Upward ray in local space
+            result = scene.ray_cast(depsgraph, origin_world, direction_world)
+
+            if result[0]:  # If there's a hit
+                results.append(result)
+
+        return result
 
 
 def get_object_count(name):
@@ -264,3 +291,7 @@ def get_object_count(name):
 def get_object(idx: int):
     obj = [o for o in ZendoObject.instances if o.idx == idx][0]
     return obj
+
+def project_to_xy(vec):
+    """Project a 3D vector to the XY plane."""
+    return mathutils.Vector((vec.x, vec.y, 0))

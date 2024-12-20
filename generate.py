@@ -1,8 +1,6 @@
 import ast
 import re
 
-from numpy.core.numeric import infty
-
 import zendo_objects
 import utils
 from math import cos, sin, pi
@@ -10,6 +8,117 @@ from structure import *
 import bpy
 import random
 from mathutils import Vector
+
+
+def is_point_in_triangle(origin, direction, triangle_coords):
+    """
+    Checks if the ray intersects a triangle in the XY plane.
+    :param origin: The origin of the ray (observer's position)
+    :param direction: The normalized direction of the ray
+    :param triangle_coords: The three points of the triangle in 2D space
+    :return: True if the ray intersects the triangle, False otherwise
+    """
+    # Project the triangle vertices into 2D space
+    v0, v1, v2 = triangle_coords
+
+    # Using a simple method like the Barycentric coordinate method to check if the point is inside
+    # Check if the ray intersects the triangle in the XY plane by projecting onto the plane
+    edge1 = v1 - v0
+    edge2 = v2 - v0
+    h = direction.cross(edge2)
+    a = edge1.dot(h)
+
+    if abs(a) < 1e-8:
+        return False
+
+    f = 1.0 / a
+    s = origin - v0
+    u = f * s.dot(h)
+
+    if u < 0.0 or u > 1.0:
+        return False
+
+    q = s.cross(edge1)
+    v = f * direction.dot(q)
+
+    if v < 0.0 or u + v > 1.0:
+        return False
+
+    t = f * edge2.dot(q)
+    return t > 0  # Check if the intersection is in front of the observer
+
+def bounding_box_overlap(origin, direction, target_obj):
+    """
+    Check if a ray from the origin in the given direction intersects
+    with the target object's bounding box in the XY plane.
+    """
+    bbox_corners = [project_to_xy(target_obj.matrix_world @ Vector(corner)) for corner in target_obj.bound_box]
+    bbox_min = mathutils.Vector((min(c.x for c in bbox_corners), min(c.y for c in bbox_corners), 0))
+    bbox_max = mathutils.Vector((max(c.x for c in bbox_corners), max(c.y for c in bbox_corners), 0))
+
+    # Simple box projection check
+    ray_end = origin + direction * 1000  # Extend ray far enough
+    return (
+            bbox_min.x <= ray_end.x <= bbox_max.x and
+            bbox_min.y <= ray_end.y <= bbox_max.y
+    )
+
+def project_to_xy(vec):
+    """Project a 3D vector to the XY plane."""
+    return mathutils.Vector((vec.x, vec.y, 0))
+
+
+def world_space_coords(obj, verts):
+    """Convert local coordinates of vertices to world space."""
+    return [project_to_xy(obj.matrix_world @ vert.co) for vert in verts]
+
+def check_pointing(observer: ZendoObject):
+    """
+    Checks if the given zendo object points towards an object
+    :param observer: The zendo object to check
+    :return: A list of object it currently points towards
+    """
+    bpy.context.view_layer.update()
+    results = []
+
+
+    for target in ZendoObject.instances:
+        if target is observer:
+            continue
+
+        if observer.shape == 'pyramid':
+            origin, direction = observer.get_rays()
+            direction = direction.normalized()
+            origin.z = 0.5
+            direction.z = 0.5
+            
+            for target_face in target.obj.data.polygons:
+
+                target_verts = [target.obj.data.vertices[v] for v in target_face.vertices]
+                target_coords = [target.obj.matrix_world @ vert.co for vert in target_verts]
+
+                if len(target_coords) == 3:  # Triangle face
+                    # Check intersection with the triangle in the XY plane
+                    if is_point_in_triangle(origin, direction, target_coords):
+                        dist = (target_coords[0] - origin).length
+                        results.append((target, dist))
+
+                elif len(target_coords) == 4:  # Square face
+                    # Check intersection with the square in the XY plane
+                    for coord in target_coords:
+                        to_target = (coord - origin).normalized()
+                        dot_product = to_target.dot(direction)
+                        if dot_product > 0.95:  # Adjust for threshold tolerance
+                            dist = (coord - origin).length
+                            results.append((target, dist))
+                            break
+
+        # Sort objects by proximity
+
+    results.sort(key=lambda x: x[1])
+
+
+    return [obj for obj, _ in results]
 
 
 def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None):
@@ -26,7 +135,7 @@ def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None):
     # Iterate over all other objects in the scene
     for other_obj in ZendoObject.instances:
         if other_obj is zendo_object or other_obj is omit:
-            continue  # Skip checking collision with itself
+            continue  # Skip checking collision with itself or omit object
 
         # Get the world-space bounding box of the other object
         other_bb = [other_obj.obj.matrix_world @ Vector(corner) for corner in other_obj.obj.bound_box]
@@ -88,83 +197,30 @@ def generate_creation(args, instruction):
         :param instruction: Instruction dictionary.
         :return: Object creation command as string.
         """
-    object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
-
     idx = instruction['id']
     shape = instruction['shape']
-    color = object_colors[instruction['color']]
+    color = instruction['color']
     orientation = instruction['orientation']
     action = instruction['action']
     #name = f"{idx}_{shape}"
 
     if shape == 'block':
-        return zendo_objects.Block(args, idx, color, orientation)
+        obj = zendo_objects.Block(args, idx, color, orientation)
     elif shape == 'wedge':
-        return zendo_objects.Wedge(args, idx, color, orientation)
+        obj = zendo_objects.Wedge(args, idx, color, orientation)
     elif shape == 'pyramid':
-        return zendo_objects.Pyramid(args, idx, color, orientation)
+        obj = zendo_objects.Pyramid(args, idx, color, orientation)
 
-
-def generate_commands(instructions):
-    """
-    Generates Python commands for creating objects and defining relationships.
-
-    :param instructions: List of instruction dictionaries.
-    :return: Tuple of object creation commands and relation commands as strings.
-    """
-    # Mapping of shape names to their corresponding classes
-    shape_to_class = {
-        'block': 'zendo_objects.Block',
-        'wedge': 'zendo_objects.Wedge',
-        'pyramid': 'zendo_objects.Pyramid'
-    }
-
-    object_creation_commands = []
-    relation_commands = []
-
-    for instruction in instructions:
-        shape_class = shape_to_class.get(instruction['shape'], None)
-        if not shape_class:
-            raise ValueError(f"Unknown shape: {instruction['shape']}")
-
-        # Generate a unique name for the object
-        unique_name = f"{instruction['shape']}_{instruction['id']}"
-
-        # Build the object creation command
-        object_command = (
-            f"{unique_name} = {shape_class}("
-            f"args, 1.0, object_colors['{instruction['color']}'], "
-            f"'{instruction['orientation']}')"
-        )
-        object_creation_commands.append(object_command)
-
-        # Check for relationships in the 'action' field
-        action = instruction['action']
-        match = re.match(r"(\w+)\((\d+)\)", action)
-        if match:
-            rel_type = match.group(1)  # e.g., 'inside', 'pointing', 'on_top_of'
-            target_id = int(match.group(2))  # Target object ID
-
-            # Generate the target object's unique name
-            target_object = next(
-                (f"{target_instr['shape']}_{target_instr['id']}" for target_instr in instructions if target_instr['id'] == target_id),
-                None
-            )
-            if not target_object:
-                raise ValueError(f"Target object with ID {target_id} not found for relation '{rel_type}'.")
-
-
-            # Generate the relationship command
-            relation_command = f"{rel_type}({unique_name}, {target_object})"
-            relation_commands.append(relation_command)
-
-    return object_creation_commands, relation_commands
-
+    if args.random_object_rotation:
+        d = random.uniform(0, 360)
+        obj.rotate_z(d)
+    return obj
 
 def generate_structure(args, prolog_string: str):
     placement_radius = args.placement_radius
     anchor_position = args.anchor_position
     random_faces = args.random_face_choice
+
 
     items = ast.literal_eval(prolog_string)
     instructions = []
@@ -192,6 +248,8 @@ def generate_structure(args, prolog_string: str):
     anchor = grounded_objects[0]
     anchor_obj = generate_creation(args, anchor)
     anchor_obj.move(Vector(anchor_position))
+    #anchor_obj.rotate_z(90)
+
 
     grounded_objects.remove(anchor)
 
@@ -209,6 +267,7 @@ def generate_structure(args, prolog_string: str):
             else:
                 print("Collision!")
 
+
     # Place related objects
     for instruction in related_objects:
 
@@ -223,7 +282,10 @@ def generate_structure(args, prolog_string: str):
                     face = random.choice(faces)
                 else:
                     face = faces[0]
-                touching(current_object, target, face=face)
+
+                touching(current_object, target, face='right')
+                #current_object.move(Vector((0, 2, 0)))
+
                 colliding_objects = check_collision(current_object, target)
                 if len(colliding_objects) == 0:
                     target.set_touching(face, current_object)
@@ -243,6 +305,19 @@ def generate_structure(args, prolog_string: str):
                     break
                 else:
                     print("Collision!")
+
+            elif relation_type == 'on_top_of':
+                print("test")
+
+
+    for instance in ZendoObject.instances:
+        if instance.shape == 'pyramid':
+            pointing_obj = check_pointing(instance)
+            print(instance.color)
+            for p in pointing_obj:
+                print(instance.get_namestring(), "points at", p.get_namestring())
+
+
 
 
 

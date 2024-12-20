@@ -11,6 +11,11 @@ render_min_bounces: 8 # The minimum number of bounces to use for rendering.
 render_max_bounces: 8 # The maximum number of bounces to use for rendering.
 render_tile_size: 256 # The tile size to use for rendering.
 stacking_offset: 0.1 # Offset for stacking objects ontop of each other
+
+
+# Config for scene generation
 placement_radius: 2 # Radius for placement of grounded objects
 anchor_position: [0, 0, 0] # Center position of object placement radius
 random_face_choice: True # Choose random faces when resolving relations or follow predefined sequence
+random_object_rotation: False
+touching_offset: 0.1

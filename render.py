@@ -29,8 +29,9 @@ def main(args):
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
 
-    example_string = "['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, block, flat, touching(2))']"
-    #example_string = "['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(0, red, block, flat, touching(2))']"
+    example_string = "['item(3, green, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, pyramid, flat, touching(2))']"
+    #example_string = "['item(5, red, block, vertical, pointing(2))', 'item(4, yellow, block, flat, pointing(3))', 'item(3, yellow, pyramid, vertical, pointing(0))', 'item(2, blue, wedge, vertical, on_top_of(4))', 'item(1, red, pyramid, upright, touching(2))', 'item(0, red, block, flat, on_top_of(2))']"
+
     generate_structure(args, example_string)
 
 
