@@ -12,9 +12,9 @@ at least ...
 ✔    at least NUMBER COLOR SHAPE pieces
 ✔    at least NUMBER ORIENTATION SHAPE pieces
 ✔    at least NUMBER COLOR ORIENTATION pieces
-    at least NUMBER SHAPE pieces INTERACTION
-    at least NUMBER ORIENTATION pieces INTERACTION
-    at least NUMBER COLOR pieces INTERACTION
+✔    at least NUMBER SHAPE pieces INTERACTION
+✔    at least NUMBER ORIENTATION pieces INTERACTION
+✔    at least NUMBER COLOR pieces INTERACTION
 exactly ...
 ✔    exactly NUMBER COLOR pieces OPERATION
 ✔    exactly NUMBER ORIENTATION pieces OPERATION
@@ -22,9 +22,9 @@ exactly ...
 ✔    exactly NUMBER COLOR SHAPE pieces
 ✔    exactly NUMBER ORIENTATION SHAPE pieces
 ✔    exactly NUMBER COLOR ORIENTATION pieces
-    exactly NUMBER SHAPE pieces INTERACTION
-    exactly NUMBER COLOR pieces INTERACTION
-    exactly NUMBER ORIENTATION pieces INTERACTION
+✔    exactly NUMBER SHAPE pieces INTERACTION
+✔    exactly NUMBER COLOR pieces INTERACTION
+✔    exactly NUMBER ORIENTATION pieces INTERACTION
 more ... pieces than ...
 ✔    more SHAPE pieces than SHAPE pieces
 ✔    more COLOR pieces than SHAPE pieces
@@ -40,13 +40,13 @@ an odd number of ...
 ✔    an odd number of COLOR pieces OPERATION
 ✔    an odd number of ORIENTATION pieces OPERATION
 ✔    an odd number of SHAPE pieces OPERATION
-    an odd number of SHAPE pieces INTERACTION
+✔    an odd number of SHAPE pieces INTERACTION
 an even number of ...
 ✔    an even number of total pieces
 ✔    an even number of COLOR pieces OPERATION
 ✔    an even number of ORIENTATION pieces OPERATION
 ✔    an even number of SHAPE pieces OPERATION
-    an even number of SHAPE pieces INTERACTION
+✔    an even number of SHAPE pieces INTERACTION
 either ... or ...
 ✔    either NUMBER or NUMBER of total pieces
 
@@ -62,7 +62,11 @@ touching a SHAPE piece
 touching a COLOR piece
 touching a ORIENTATION piece
 pointing at a SHAPE piece
-on top of another SHAPE piece
+pointing at a COLOR piece
+pointing at a ORIENTATION piece
+on top of a SHAPE piece
+on top of a COLOR piece
+on top of a ORIENTATION piece
 
 
 

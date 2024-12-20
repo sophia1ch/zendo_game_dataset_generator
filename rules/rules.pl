@@ -16,13 +16,13 @@ shape(pyramid).
 shape(wedge).
 shape(block).
 
-interaction(grounded).
+interaction(grounded). % specific case: handled like attribute and not an interaction, so check with attribute rules
 interaction(touching(_)).
 interaction(pointing(_)).
 interaction(on_top_of(_)).
 interaction(inside(_)).
 
-max_items(7).
+max_items(2).
 
 
 
@@ -102,7 +102,11 @@ count_multiple_attributes(A1, A2, Structure, Count) :-
     length(Filtered, Count).
 
 % Check if an item has QAttr and an interaction of type InteractionName that leads to another item with IAttr
-% #TODO: Check for correct number of elements for the specific interaction
+% #TODO: Only one on-top-of possible for every shape/orientation (only flat block can have two on top)
+% #TODO: Vertical/Upright/Upside-down doesn't point on something
+% #TODO: Grounded can only point on grounded
+% #TODO: Every object can only have one inside. The other need to be on-top-of
+% #TODO: Maximum 5 touching items for one target item (4 grounded, one on top)
 has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, item(_,C,S,O,I)) :-
     item_has_attribute(QAttr, item(_,C,S,O,I)),
     decode_interaction(I, InteractionName, Target),
@@ -167,6 +171,7 @@ odd_number_of(Structure) :-
 
 even_number_of(Structure) :-
     length(Structure, L),
+    L \= 0,
     0 is L mod 2.
 
 odd_number_of(Attr, Structure) :-
@@ -175,7 +180,25 @@ odd_number_of(Attr, Structure) :-
 
 even_number_of(Attr, Structure) :-
     count_attribute(Attr, Structure, C),
+    C \= 0,
     0 is C mod 2.
+
+odd_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
+    findall(Item,
+        (member(Item, Structure),
+        has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, Item)),
+        Filtered),
+    length(Filtered, C),
+    1 is C mod 2.
+
+even_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
+    findall(Item,
+        (member(Item, Structure),
+        has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, Item)),
+        Filtered),
+    length(Filtered, Count),
+    Count \= 0,
+    0 is Count mod 2.
 
 either_or(N1, N2, Structure) :-
     length(Structure, L),
