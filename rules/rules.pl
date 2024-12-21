@@ -22,7 +22,7 @@ interaction(pointing(_)).
 interaction(on_top_of(_)).
 interaction(inside(_)).
 
-max_items(2).
+max_items(5).
 
 
 
@@ -31,6 +31,7 @@ max_items(2).
 generate_valid_structure(Checks, Structure) :-
     repeat,
     generate_structure(Structure),
+    interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
 
 generate_structure(Structure) :-
@@ -102,11 +103,6 @@ count_multiple_attributes(A1, A2, Structure, Count) :-
     length(Filtered, Count).
 
 % Check if an item has QAttr and an interaction of type InteractionName that leads to another item with IAttr
-% #TODO: Only one on-top-of possible for every shape/orientation (only flat block can have two on top)
-% #TODO: Vertical/Upright/Upside-down doesn't point on something
-% #TODO: Grounded can only point on grounded
-% #TODO: Every object can only have one inside. The other need to be on-top-of
-% #TODO: Maximum 5 touching items for one target item (4 grounded, one on top)
 has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, item(_,C,S,O,I)) :-
     item_has_attribute(QAttr, item(_,C,S,O,I)),
     decode_interaction(I, InteractionName, Target),
@@ -121,6 +117,87 @@ decode_interaction(I, Name, T) :-
     I =.. [Name,T], !.
 decode_interaction(_, _, none).
 
+% Check different constraints for the interaction between items
+interaction_constraint_check(Structure) :-
+    % Fail if there are more than one item on_top_of of another item
+    % #TODO: check! sometimes there are more than one item on another item
+    \+ ( % Negation operator
+        member(item(TargetId,_,Shape,Orientation,_), Structure),
+        (Shape \= block, Orientation \= flat),
+        findall(SourceId,
+                (member(item(SourceId,_,_,_,Interaction), Structure),
+                Interaction = on_top_of(TargetId)),
+                Sources),
+        length(Sources, Count),
+        Count > 1
+    ),
+    % Only a flat block item can have two items on top of it
+    % #TODO: doesn't working
+    \+ (
+        member(item(TargetId,_,block,flat,_), Structure),
+        findall(SourceId,
+                (member(item(SourceId,_,_,_,Interaction), Structure),
+                Interaction = on_top_of(TargetId)),
+                Sources),
+        length(Sources, Count),
+        Count > 2
+    ),
+    % Every item can only have max 4 touching items (above = on_top_of, below = none)
+    \+ (
+        member(item(TargetId,_,_,_,_), Structure),
+        findall(SourceId,
+                (member(item(SourceId,_,_,_,Interaction), Structure),
+                Interaction = touching(TargetId)),
+                Sources),
+        length(Sources, Count),
+        Count > 4
+    ),
+    % Ensure all on_top_of attributes have the same orientation as the related attribute
+    % Also ensure, that the target item has right interaction
+    % #TODO: check for loops and ensure right constraints on on_top_of
+    forall(
+        member(item(SourceId,_,_,_,on_top_of(TargetId)), Structure),
+        (member(item(TargetId,_,_,_,grounded), Structure);
+        member(item(TargetId,_,_,_,pointing(SourceId)), Structure);
+        member(item(TargetId,_,_,_,touching(_)), Structure);
+        member(item(TargetId,_,_,_,inside(SourceId)), Structure);
+        member(item(TargetId,_,_,_,on_top_of(AnotherId)), Structure),
+        AnotherId \= SourceId)
+    ),
+    % Ensure at least one touching element is grounded via grounded or pointing (all pointing are grounded)
+    % Or the touching item is part of a chain of touching items
+    forall(
+        member(item(SourceId,_,_,_,touching(TargetId)), Structure),
+        (member(item(TargetId,_,_,_,grounded), Structure);
+        member(item(TargetId,_,_,_,touching(_)), Structure);
+        member(item(TargetId,_,_,_,pointing(_)), Structure))
+    ),
+    % Every item can only have one item inside and is therefore on_top_of it or inside another one (chain)
+    % Only need to check for inside and on_top_of condition, because on_top_of is limited to one
+    % Ensures that orientation of source and target is the same
+    % #TODO: check for loops
+    forall(
+        member(item(SourceId, _, Shape, SourceOrientation, inside(TargetId)), Structure),
+        ((member(item(TargetId, _, _, TargetOrientation, on_top_of(SourceId)), Structure);
+        member(item(TargetId, _, _, TargetOrientation, inside(AnotherId)), Structure),
+        AnotherId \= SourceId),
+        Shape = pyramid,
+        SourceOrientation = TargetOrientation)
+    ),
+    % All pointing items are grounded! Loops allowed
+    % Flat and cheesecake items can point only to grounded items
+    % Upright and vertical items can only point to items with on_top_of(SourceId)
+    forall(
+        member(item(SourceId, _, _, _, pointing(TargetId)), Structure),
+        ((member(item(SourceId, _, _, flat, _), Structure),
+        member(item(TargetId, _, _, _, grounded), Structure);
+        member(item(SourceId, _, _, cheesecake, _), Structure),
+        member(item(TargetId, _, _, _, grounded), Structure));
+        (member(item(SourceId, _, _, upright, _), Structure),
+        member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure);
+        member(item(SourceId, _, _, vertical, _), Structure),
+        member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure)))
+    ).
 
 
 
