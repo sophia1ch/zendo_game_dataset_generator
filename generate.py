@@ -10,68 +10,6 @@ import random
 from mathutils import Vector
 
 
-def is_point_in_triangle(origin, direction, triangle_coords):
-    """
-    Checks if the ray intersects a triangle in the XY plane.
-    :param origin: The origin of the ray (observer's position)
-    :param direction: The normalized direction of the ray
-    :param triangle_coords: The three points of the triangle in 2D space
-    :return: True if the ray intersects the triangle, False otherwise
-    """
-    # Project the triangle vertices into 2D space
-    v0, v1, v2 = triangle_coords
-
-    # Using a simple method like the Barycentric coordinate method to check if the point is inside
-    # Check if the ray intersects the triangle in the XY plane by projecting onto the plane
-    edge1 = v1 - v0
-    edge2 = v2 - v0
-    h = direction.cross(edge2)
-    a = edge1.dot(h)
-
-    if abs(a) < 1e-8:
-        return False
-
-    f = 1.0 / a
-    s = origin - v0
-    u = f * s.dot(h)
-
-    if u < 0.0 or u > 1.0:
-        return False
-
-    q = s.cross(edge1)
-    v = f * direction.dot(q)
-
-    if v < 0.0 or u + v > 1.0:
-        return False
-
-    t = f * edge2.dot(q)
-    return t > 0  # Check if the intersection is in front of the observer
-
-def bounding_box_overlap(origin, direction, target_obj):
-    """
-    Check if a ray from the origin in the given direction intersects
-    with the target object's bounding box in the XY plane.
-    """
-    bbox_corners = [project_to_xy(target_obj.matrix_world @ Vector(corner)) for corner in target_obj.bound_box]
-    bbox_min = mathutils.Vector((min(c.x for c in bbox_corners), min(c.y for c in bbox_corners), 0))
-    bbox_max = mathutils.Vector((max(c.x for c in bbox_corners), max(c.y for c in bbox_corners), 0))
-
-    # Simple box projection check
-    ray_end = origin + direction * 1000  # Extend ray far enough
-    return (
-            bbox_min.x <= ray_end.x <= bbox_max.x and
-            bbox_min.y <= ray_end.y <= bbox_max.y
-    )
-
-def project_to_xy(vec):
-    """Project a 3D vector to the XY plane."""
-    return mathutils.Vector((vec.x, vec.y, 0))
-
-
-def world_space_coords(obj, verts):
-    """Convert local coordinates of vertices to world space."""
-    return [project_to_xy(obj.matrix_world @ vert.co) for vert in verts]
-
 def check_pointing(observer: ZendoObject):
     """
     Checks if the given zendo object points towards an object
@@ -81,44 +19,29 @@ def check_pointing(observer: ZendoObject):
     bpy.context.view_layer.update()
     results = []
 
+    for origin, direction in observer.get_rays():
 
-    for target in ZendoObject.instances:
-        if target is observer:
-            continue
+        direction = direction.normalized()
+        current_location = origin.copy()
+        #origin.z = 0.001 # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
+        #hit_location = origin.copy()
+        while True:
+            hit, hit_location, _, _, obj, _ = bpy.context.scene.ray_cast(
+                bpy.context.view_layer.depsgraph, current_location, direction
+            )
+            if not hit:
+                #ray_path.append(hit_location)
+                break
+            else:
 
-        if observer.shape == 'pyramid':
-            origin, direction = observer.get_rays()
-            direction = direction.normalized()
-            origin.z = 0.5
-            direction.z = 0.5
-            
-            for target_face in target.obj.data.polygons:
+                zendo_obj = zendo_objects.get_from_blender_obj(obj)
+                if zendo_obj is not None and zendo_obj not in results and zendo_obj is not observer:
 
-                target_verts = [target.obj.data.vertices[v] for v in target_face.vertices]
-                target_coords = [target.obj.matrix_world @ vert.co for vert in target_verts]
+                    results.append(zendo_obj)
+                current_location = hit_location + direction * 0.01
+                #hit_location *= 1.01
 
-                if len(target_coords) == 3:  # Triangle face
-                    # Check intersection with the triangle in the XY plane
-                    if is_point_in_triangle(origin, direction, target_coords):
-                        dist = (target_coords[0] - origin).length
-                        results.append((target, dist))
-
-                elif len(target_coords) == 4:  # Square face
-                    # Check intersection with the square in the XY plane
-                    for coord in target_coords:
-                        to_target = (coord - origin).normalized()
-                        dot_product = to_target.dot(direction)
-                        if dot_product > 0.95:  # Adjust for threshold tolerance
-                            dist = (coord - origin).length
-                            results.append((target, dist))
-                            break
-
-        # Sort objects by proximity
-
-    results.sort(key=lambda x: x[1])
-
-
-    return [obj for obj, _ in results]
+    return results
 
 
 def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None):
@@ -248,7 +171,6 @@ def generate_structure(args, prolog_string: str):
     anchor = grounded_objects[0]
     anchor_obj = generate_creation(args, anchor)
     anchor_obj.move(Vector(anchor_position))
-    #anchor_obj.rotate_z(90)
 
 
     grounded_objects.remove(anchor)
@@ -256,6 +178,7 @@ def generate_structure(args, prolog_string: str):
     # Place grounded objects
     for instruction in grounded_objects:
         current_object = generate_creation(args, instruction)
+        current_object.rotate_z(90)
         while True:
             # Try to place the object at a random position
             pos = get_random_position(anchor=anchor_position, radius=placement_radius)
@@ -282,8 +205,8 @@ def generate_structure(args, prolog_string: str):
                     face = random.choice(faces)
                 else:
                     face = faces[0]
-
-                touching(current_object, target, face='right')
+                current_object.rotate_z(90)
+                touching(current_object, target, face=face)
                 #current_object.move(Vector((0, 2, 0)))
 
                 colliding_objects = check_collision(current_object, target)
@@ -311,11 +234,11 @@ def generate_structure(args, prolog_string: str):
 
 
     for instance in ZendoObject.instances:
-        if instance.shape == 'pyramid':
-            pointing_obj = check_pointing(instance)
-            print(instance.color)
-            for p in pointing_obj:
-                print(instance.get_namestring(), "points at", p.get_namestring())
+
+        pointing_obj = check_pointing(instance)
+        print(instance.color)
+        for p in pointing_obj:
+            print(instance.get_namestring(), "points at", p.get_namestring())
 
 
 

@@ -201,33 +201,13 @@ class Pyramid(ZendoObject):
         super(Pyramid, self).__init__(args, idx,"Pyramid", color, pose)
         self.nested = None
 
-    def get_top_vector(self):
-        # Access the object's mesh data
-        mesh = self.obj.data
-
-        # Ensure the object's data is up to date
-        bpy.context.view_layer.update()
-
-        # Find the top vertex by searching for the highest Z-coordinate in local space
-        top_vertex = max(mesh.vertices, key=lambda v: v.co.z)
-
-        # Transform the top vertex to world space
-        top_world = self.obj.matrix_world @ top_vertex.co
-
-        # The object's origin is at (0, 0, 0) in its local space
-        origin_world = self.obj.matrix_world @ mathutils.Vector((0, 0, 0))
-
-        # Create a vector from the origin to the top vertex
-        vector_to_top = top_world - origin_world
-
-        return vector_to_top
-
     def get_rays(self):
         mesh = self.obj.data
         tip = max(mesh.vertices, key=lambda v: v.co.z)  # Highest vertex in local Z
         origin = project_to_xy(self.obj.matrix_world @ tip.co)
+        origin.z = 0.001  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
         direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
-        return origin, direction
+        return [(origin, direction)]
 
 
 class Block(ZendoObject):
@@ -240,12 +220,16 @@ class Block(ZendoObject):
     def __init__(self, args, idx: int, color: str, pose: str):
         super(Block, self).__init__(args, idx,"Block", color, pose)
 
-    def get_raycast(self):
+    def get_rays(self):
         mesh = self.obj.data
-        tip = max(mesh.vertices, key=lambda v: v.co.z)  # Highest vertex in local Z
-        origin = project_to_xy(self.obj.matrix_world @ tip.co)
-        direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
-        return None
+        highest_z = max(v.co.z for v in mesh.vertices)
+        top_vertices = [v for v in mesh.vertices if v.co.z == highest_z]
+        rays = []
+        for v in top_vertices:
+            origin = self.obj.matrix_world @ v.co
+            direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
+            rays.append((origin, direction))
+        return rays
 
 
 class Wedge(ZendoObject):
@@ -258,27 +242,21 @@ class Wedge(ZendoObject):
     def __init__(self, args, idx: int, color: str, pose: str):
         super(Wedge, self).__init__(args, idx, "Wedge", color, pose)
 
-    def get_raycast(self):
-        obj = self.obj
-
-        scene = bpy.context.scene
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-
-        top_edge_start = Vector((-obj.dimensions.x / 2, 0, obj.dimensions.z))
-        top_edge_end = Vector((obj.dimensions.x / 2, 0, obj.dimensions.z))
-
-        results = []
-        for local_point in [top_edge_start, top_edge_end]:
-            local_direction = Vector((0, 0, 1))
-            origin_world = obj.matrix_world @ local_point
-            direction_world = (obj.matrix_world.to_3x3() @ local_direction).normalized()
-            # Upward ray in local space
-            result = scene.ray_cast(depsgraph, origin_world, direction_world)
-
-            if result[0]:  # If there's a hit
-                results.append(result)
-
-        return result
+    def get_rays(self):
+        mesh = self.obj.data
+        highest_z = max(v.co.z for v in mesh.vertices)
+        top_vertices = [v for v in mesh.vertices if v.co.z == highest_z]
+        rays = []
+        for v in top_vertices:
+            if self.pose == 'flat':
+                origin = project_to_xy(self.obj.matrix_world @ v.co)
+                origin.z = 0.001  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
+                direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
+            else:
+                origin = self.obj.matrix_world @ v.co
+                direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
+            rays.append((origin, direction))
+        return rays
 
 
 def get_object_count(name):
@@ -295,3 +273,10 @@ def get_object(idx: int):
 def project_to_xy(vec):
     """Project a 3D vector to the XY plane."""
     return mathutils.Vector((vec.x, vec.y, 0))
+
+def get_from_blender_obj(obj):
+    obj = [o for o in ZendoObject.instances if o.obj is obj]
+    if len(obj) > 0:
+        return obj[0]
+    else:
+        return None

@@ -87,8 +87,10 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left'):
     # Calculate the offset to align the objects
     if direction > 0:
         offset = obj2_max[axis_index] - obj1_min[axis_index]
+        #offset += 1
     else:
         offset = obj2_min[axis_index] - obj1_max[axis_index]
+        #offset -= 1
 
     # Move object_1 to touch object_2
     object_1.obj.location[axis_index] += offset
@@ -143,8 +145,19 @@ def pointing(object_1: ZendoObject, target: ZendoObject):
 
     origin = object_1.obj.matrix_world.translation
 
-    tip_vector = object_1.get_top_vector().normalized()
-    tip_vector_xy = Vector((tip_vector.x, tip_vector.y, 0)).normalized()
+    rays = object_1.get_rays()
+    avg_origin = Vector((0, 0, 0))
+    avg_direction = Vector((0, 0, 0))
+    for ray_origin, ray_direction in rays:
+        avg_origin += ray_origin
+        avg_direction += ray_direction
+
+    avg_origin = avg_origin / len(rays)
+    avg_direction = avg_direction / len(rays)
+
+
+    #tip_vector = object_1.get_top_vector().normalized()
+    #tip_vector_xy = Vector((tip_vector.x, tip_vector.y, 0)).normalized()
 
     target_position = copy.deepcopy(target.obj.matrix_world.translation)
     target_direction_xy = mathutils.Vector((target_position.x - origin.x,
@@ -152,10 +165,10 @@ def pointing(object_1: ZendoObject, target: ZendoObject):
                                             0)).normalized()
 
     # Compute the rotation angle in the XY plane
-    rotation_angle = tip_vector_xy.angle(target_direction_xy)
+    rotation_angle = avg_direction.angle(target_direction_xy)
 
     # Determine the rotation direction (clockwise or counterclockwise)
-    cross_z = tip_vector_xy.cross(target_direction_xy).z
+    cross_z = avg_direction.cross(target_direction_xy).z
     if cross_z < 0:
         rotation_angle = -rotation_angle
 
