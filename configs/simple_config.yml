@@ -19,3 +19,6 @@ anchor_position: [0, 0, 0] # Center position of object placement radius
 random_face_choice: True # Choose random faces when resolving relations or follow predefined sequence
 random_object_rotation: False
 touching_offset: 0.1
+generation_attempts: 10000
+collision_margin: 0.3
+render_rays: True

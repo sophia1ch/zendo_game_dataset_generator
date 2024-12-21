@@ -58,8 +58,7 @@ class ZendoObject:
         #ray_path = os.path.join(args.shape_dir, '%s.blend' % name.lower(), 'Object')
 
     def remove(self):
-        objs = bpy.data.objects
-        objs.remove(objs[self.name], do_unlink=True)
+        bpy.data.objects.remove(self.obj, do_unlink=True)
         ZendoObject.instances.remove(self)
 
     def get_namestring(self):

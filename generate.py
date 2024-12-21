@@ -1,6 +1,6 @@
 import ast
 import re
-
+from collections import defaultdict, deque
 import zendo_objects
 import utils
 from math import cos, sin, pi
@@ -10,9 +10,10 @@ import random
 from mathutils import Vector
 
 
-def check_pointing(observer: ZendoObject):
+def check_pointing(observer: ZendoObject, render_rays: bool = False):
     """
     Checks if the given zendo object points towards an object
+    :param render_rays: Defines if the pointing rays should be added to the scene
     :param observer: The zendo object to check
     :return: A list of object it currently points towards
     """
@@ -20,37 +21,33 @@ def check_pointing(observer: ZendoObject):
     results = []
 
     for origin, direction in observer.get_rays():
-
+        ray_path = [origin.copy()]
         direction = direction.normalized()
         current_location = origin.copy()
-        #origin.z = 0.001 # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
-        #hit_location = origin.copy()
         while True:
             hit, hit_location, _, _, obj, _ = bpy.context.scene.ray_cast(
                 bpy.context.view_layer.depsgraph, current_location, direction
             )
             if not hit:
-                #ray_path.append(hit_location)
                 break
             else:
-
                 zendo_obj = zendo_objects.get_from_blender_obj(obj)
                 if zendo_obj is not None and zendo_obj not in results and zendo_obj is not observer:
-
+                    ray_path.append(hit_location)
                     results.append(zendo_obj)
-                current_location = hit_location + direction * 0.01
-                #hit_location *= 1.01
+                current_location = hit_location + direction * 0.001
 
     return results
 
 
-def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None):
+def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None, margin: float = 0.0):
     # Ensure the scene is updated
     bpy.context.view_layer.update()
 
+    # Compute the bounding box of the object, including collision margin
     obj_bb = [zendo_object.obj.matrix_world @ Vector(corner) for corner in zendo_object.obj.bound_box]
-    obj_bb_min = Vector((min(v.x for v in obj_bb), min(v.y for v in obj_bb), min(v.z for v in obj_bb)))
-    obj_bb_max = Vector((max(v.x for v in obj_bb), max(v.y for v in obj_bb), max(v.z for v in obj_bb)))
+    obj_bb_min = Vector((min(v.x for v in obj_bb), min(v.y for v in obj_bb), min(v.z for v in obj_bb))) - Vector((margin,) * 3)
+    obj_bb_max = Vector((max(v.x for v in obj_bb), max(v.y for v in obj_bb), max(v.z for v in obj_bb))) + Vector((margin,) * 3)
 
     # List to store objects colliding with the given object
     colliding_objects = []
@@ -60,10 +57,10 @@ def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None):
         if other_obj is zendo_object or other_obj is omit:
             continue  # Skip checking collision with itself or omit object
 
-        # Get the world-space bounding box of the other object
+        # Get the world-space bounding box of the other object, including collision margin
         other_bb = [other_obj.obj.matrix_world @ Vector(corner) for corner in other_obj.obj.bound_box]
-        other_bb_min = Vector((min(v.x for v in other_bb), min(v.y for v in other_bb), min(v.z for v in other_bb)))
-        other_bb_max = Vector((max(v.x for v in other_bb), max(v.y for v in other_bb), max(v.z for v in other_bb)))
+        other_bb_min = Vector((min(v.x for v in other_bb), min(v.y for v in other_bb), min(v.z for v in other_bb))) - Vector((margin,) * 3)
+        other_bb_max = Vector((max(v.x for v in other_bb), max(v.y for v in other_bb), max(v.z for v in other_bb))) + Vector((margin,) * 3)
 
         # Check for overlap in bounding box (AABB collision detection)
         if (obj_bb_min.x <= other_bb_max.x and obj_bb_max.x >= other_bb_min.x and
@@ -92,8 +89,31 @@ def get_grounded(instructions):
 
 def get_relations(instructions):
     related_objects = [i for i in instructions if i.get('action') != 'grounded']
-    related_objects = sorted(related_objects, key=lambda x: x['id'])
-    return related_objects
+
+    dependencies = defaultdict(list)
+    id_to_object = {obj['id']: obj for obj in instructions}
+    dependents_count = {obj['id']: 0 for obj in instructions}
+
+    for obj in instructions:
+        action = obj['action']
+        if '(' in action and ')' in action:
+            dep_id = int(action.split('(')[-1].split(')')[0])
+            dependencies[dep_id].append(obj['id'])
+            dependents_count[obj['id']] += 1
+
+    # Topological sorting
+    sorted_objects = []
+    queue = deque([obj_id for obj_id, count in dependents_count.items() if count == 0])
+
+    while queue:
+        current = queue.popleft()
+        sorted_objects.append(id_to_object[current])
+        for dependent in dependencies[current]:
+            dependents_count[dependent] -= 1
+            if dependents_count[dependent] == 0:
+                queue.append(dependent)
+
+    return sorted_objects
 
 def get_free_face(args, obj: ZendoObject):
     random_faces = args.random_face_choice
@@ -127,6 +147,12 @@ def generate_creation(args, instruction):
     action = instruction['action']
     #name = f"{idx}_{shape}"
 
+    if orientation == 'vertical':
+        if shape == 'block':
+            orientation = random.choice(['upright', 'upside_down'])
+        else:
+            orientation = 'upright'
+
     if shape == 'block':
         obj = zendo_objects.Block(args, idx, color, orientation)
     elif shape == 'wedge':
@@ -142,8 +168,7 @@ def generate_creation(args, instruction):
 def generate_structure(args, prolog_string: str):
     placement_radius = args.placement_radius
     anchor_position = args.anchor_position
-    random_faces = args.random_face_choice
-
+    collision_margin = args.collision_margin
 
     items = ast.literal_eval(prolog_string)
     instructions = []
@@ -163,101 +188,86 @@ def generate_structure(args, prolog_string: str):
                 'action': action
             })
 
-    # get all grounded objects to place first
-    grounded_objects = get_grounded(instructions)
     related_objects = get_relations(instructions)
-
-    # place one grounded object in the center as "anchor"
-    anchor = grounded_objects[0]
-    anchor_obj = generate_creation(args, anchor)
-    anchor_obj.move(Vector(anchor_position))
-
-
-    grounded_objects.remove(anchor)
-
-    # Place grounded objects
-    for instruction in grounded_objects:
-        current_object = generate_creation(args, instruction)
-        current_object.rotate_z(90)
-        while True:
-            # Try to place the object at a random position
-            pos = get_random_position(anchor=anchor_position, radius=placement_radius)
-
-            current_object.move(pos)
-            colliding_objects = check_collision(current_object)
-            if len(colliding_objects) == 0:
-                break
-            else:
-                print("Collision!")
-
-
+    if len(related_objects) != len(instructions):
+        raise Exception(f"Rule not resolvable!\n {instructions}")
     # Place related objects
     for instruction in related_objects:
-
+        idx = related_objects.index(instruction)
         current_object = generate_creation(args, instruction)
-        relation_type, target = generate_relation(instruction)
-
-        while True:
-            if relation_type == 'touching':
-                random_faces = args.random_face_choice
-                faces = target.get_free_face()
-                if random_faces:
-                    face = random.choice(faces)
+        if instruction['action'] == 'grounded':
+            attempts = 0
+            while True:
+                if attempts >= args.generation_attempts:
+                    raise Exception(f"Exceded maximum generation attempts!")
+                # Try to place the object at a random position
+                if idx == 0:
+                    pos = Vector(anchor_position)
                 else:
-                    face = faces[0]
-                current_object.rotate_z(90)
-                touching(current_object, target, face=face)
-                #current_object.move(Vector((0, 2, 0)))
+                    pos = get_random_position(anchor=anchor_position, radius=placement_radius)
 
-                colliding_objects = check_collision(current_object, target)
-                if len(colliding_objects) == 0:
-                    target.set_touching(face, current_object)
-                    axis, direction = face_map[face]
-                    object_1_face = list(face_map.keys())[list(face_map.values()).index((axis, direction * (-1)))]
-                    current_object.set_touching(object_1_face, target)
-                    break
-                else:
-                    print("Collision!")
-
-            elif relation_type == 'pointing':
-                pos = get_random_position(anchor=anchor_position, radius=placement_radius)
                 current_object.move(pos)
-                pointing(current_object, target)
-                colliding_objects = check_collision(current_object)
+                colliding_objects = check_collision(current_object, margin=collision_margin)
                 if len(colliding_objects) == 0:
                     break
                 else:
-                    print("Collision!")
+                    attempts += 1
+                    print(f"{current_object.get_namestring()} colliding with {colliding_objects}!")
+        else:
+            relation_type, target = generate_relation(instruction)
+            attempts = 0
+            while True:
+                if attempts >= args.generation_attempts:
+                    raise Exception(f"Exceded maximum generation attempts!")
+                if relation_type == 'touching':
+                    random_faces = args.random_face_choice
+                    faces = target.get_free_face()
+                    if random_faces:
+                        face = random.choice(faces)
+                    else:
+                        face = faces[0]
+                    touching(current_object, target, face=face)
+                    colliding_objects = check_collision(current_object, target, margin=collision_margin)
+                    if len(colliding_objects) == 0:
+                        target.set_touching(face, current_object)
+                        axis, direction = face_map[face]
+                        object_1_face = list(face_map.keys())[list(face_map.values()).index((axis, direction * (-1)))]
+                        current_object.set_touching(object_1_face, target)
+                        break
+                    else:
+                        attempts += 1
+                        print(f"{current_object.get_namestring()} colliding with {colliding_objects}!")
 
-            elif relation_type == 'on_top_of':
-                print("test")
+                elif relation_type == 'pointing':
+                    pos = get_random_position(anchor=anchor_position, radius=placement_radius)
+                    current_object.move(pos)
+                    pointing(current_object, target)
+                    colliding_objects = check_collision(current_object, margin=collision_margin)
+                    pointing_objects = check_pointing(current_object)
+                    if len(colliding_objects) == 0 and len(pointing_objects) == 1:
+                        break
+                    else:
+                        attempts += 1
+                        print(f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
 
+                elif relation_type == 'on_top_of':
+                    on_top(current_object, target)
+                    break
 
-    for instance in ZendoObject.instances:
+    # Scene integrity check
+    integrity = True
+    print("Integrity check")
+    for instruction in related_objects:
+        # Check pointing
+        current_object = zendo_objects.get_object(instruction['id'])
+        pointing_objects = check_pointing(current_object, render_rays=args.render_rays)
+        print(
+            f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
+        if instruction['action'].split('(')[0] == 'pointing':
+            if len(pointing_objects) != 1:
+                integrity = False
+        else:
+            if len(pointing_objects) != 0:
+                integrity = False
 
-        pointing_obj = check_pointing(instance)
-        print(instance.color)
-        for p in pointing_obj:
-            print(instance.get_namestring(), "points at", p.get_namestring())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    #placement_commands = generate_placements(grounded_objects, 0,0)
-
-
-
-
+    print(integrity)
