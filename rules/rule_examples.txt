@@ -29,4 +29,5 @@ and([at_least(red, 1, Structure), exactly(blue, 2, Structure)])
 
 
 Interaction:
-coming soon
+exactly 2 red pieces touching another pyramid piece
+exactly_interaction(red, pyramid, touching, 2, Structure)

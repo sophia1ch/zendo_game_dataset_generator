@@ -22,7 +22,7 @@ interaction(pointing(_)).
 interaction(on_top_of(_)).
 interaction(inside(_)).
 
-max_items(5).
+max_items(7).
 
 
 

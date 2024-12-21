@@ -1,6 +1,6 @@
-import os, random, json, re
+import sys, os, random, json, re
 from dataclasses import dataclass, field
-#from pyswip import Prolog
+from pyswip import Prolog
 
 @dataclass
 class PlaceholderTemplate:
@@ -8,7 +8,7 @@ class PlaceholderTemplate:
     class Token:
         string: str
         is_placeholder: bool
-
+    identifier: str
     template: str
     placeholders: list[str]
     tokens: list[Token]
@@ -17,16 +17,21 @@ class PlaceholderTemplate:
 @dataclass
 class Placeholder:
     categories: dict[str, list[PlaceholderTemplate]]
-    by_patterns: dict[str, list[PlaceholderTemplate]]
+    templates_of_start_match: dict[str, list[PlaceholderTemplate]]
     all_templates: list[PlaceholderTemplate]
-    pattern_string: str = ""
+    start_pattern: re.Pattern[str]
     max_references_depth: int = 0
     #referenced_by: dict[str, int] = field(default_factory=lambda: {})
     references: dict[str, int] = field(default_factory=lambda: {})
 
 @dataclass
 class Rules:
+    # Maps QUANTITY, OPERATION, INTERACTION, ORIENTATION, COLOR, etc. to their respective placeholder rules.
     placeholders: dict[str, Placeholder]
+
+    # Maps the first token string of a template to itself
+    templates_of_start_match: dict[str, list[PlaceholderTemplate]]
+    templates_start_pattern: re.Pattern[str]
 
 @dataclass
 class RuleNode:
@@ -78,9 +83,15 @@ def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: s
                 return f"[ERROR: No templates for placeholder {placeholder_identifier}]"
     
     if placeholder_identifier == "OPERATION":
-        picked_template = random.choice([template for template in placeholder_templates if template.template not in used_operators])
-        if len(picked_template.placeholders) > 0: # Check if operation is none (a word independent way of checking)
-            used_operators.append(picked_template.template)
+        if len(used_operators) > 0:
+            # TODO(kilian): Better way to pick none template
+            for template in placeholder_templates:
+                if len(template.placeholders) == 0:
+                    picked_template = template
+        else:
+            picked_template = random.choice([template for template in placeholder_templates if template.template not in used_operators])
+            if len(picked_template.placeholders) > 0: # Check if operation is none (a word independent way of checking)
+                used_operators.append(picked_template.template)
     else:
         picked_template = random.choice(placeholder_templates)
     return picked_template
@@ -89,29 +100,22 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
     if generator.print_tree:
         tabs_string = '\t'*generator.depth
         print(f"{tabs_string}{template.template}")
-
-    result = (template.template + ".")[:-1]
-    for placeholder in template.placeholders:
-        placeholder_key = f"{{{placeholder}}}"
-        i = 0
-        while placeholder_key in result:
+    
+    result = ""
+    token_placeholder_count = 0
+    for token in template.tokens:
+        if token.is_placeholder:
             if generator.print_tree:
-                print(f"{tabs_string}-> [{i}] {placeholder_key}")
-            random_replacement = random_placeholder_template_or_error(generator.rules, placeholder, two_steps=generator.two_random_steps, used_operators=generator.used_operators)
-            is_none_template = False
-            if isinstance(random_replacement, PlaceholderTemplate):
-                if placeholder == "OPERATION" and len(random_replacement.placeholders) == 0:
-                    is_none_template = True
+                print(f"{tabs_string}-> [{token_placeholder_count}] {token.string}")
+            replacement = random_placeholder_template_or_error(generator.rules, token.string, generator.two_random_steps, generator.used_operators)
+            if isinstance(replacement, PlaceholderTemplate):
                 generator.depth += 1
-                random_replacement = template_to_string_random_recursive(generator, random_replacement)
+                replacement = template_to_string_random_recursive(generator, replacement)
                 generator.depth -= 1
-            
-            if is_none_template:
-                # NOTE(kilian): Just remove the placeholder and prefixed whitespace
-                result = re.sub(r"\s*" + re.escape(placeholder_key), "", result)
-            else:
-                result = result.replace(placeholder_key, random_replacement, 1)
-            i += 1
+            result += replacement
+            token_placeholder_count += 1
+        else:
+            result += token.string
     return result
 
 def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random_steps: bool=False, print_tree: bool=False) -> str:
@@ -119,7 +123,7 @@ def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random
     string = template_to_string_random_recursive(generator, starting_template)
     return string
 
-def make_placeholder_template(template_text: str, placeholders_list: list[str], prolog_list: list[str]) -> PlaceholderTemplate:
+def make_placeholder_template(identifier: str, template_text: str, placeholders_list: list[str], prolog_list: list[str]) -> PlaceholderTemplate:
     tokens: list[PlaceholderTemplate.Token] = []
     if placeholders_list:
         placeholders_pattern = re.compile("|".join([re.escape(f"{{{p}}}") for p in placeholders_list]))
@@ -130,22 +134,22 @@ def make_placeholder_template(template_text: str, placeholders_list: list[str], 
             if first_match is None:
                 break
             
-            prefix_string = remaining_text[:first_match.start(0)].strip()
+            prefix_string = remaining_text[:first_match.start(0)]
             match_string = remaining_text[first_match.start(0) + 1:first_match.end(0) - 1]
-            remaining_text = remaining_text[first_match.end(0):].strip()
+            remaining_text = remaining_text[first_match.end(0):]
             if prefix_string != "":
                 tokens.append(PlaceholderTemplate.Token(prefix_string, False))
             tokens.append(PlaceholderTemplate.Token(match_string, True))
         if remaining_text != "":
             tokens.append(PlaceholderTemplate.Token(remaining_text, False))
     else:
-        tokens.append(PlaceholderTemplate.Token(template_text.strip(), False))
-    return PlaceholderTemplate(template_text, placeholders_list, tokens, prolog_list)
+        tokens.append(PlaceholderTemplate.Token(template_text, False))
+    return PlaceholderTemplate(identifier, template_text, placeholders_list, tokens, prolog_list)
 
 def load_json_rules(filename) -> Rules|None:
     with open(filename) as f:
         data = json.load(f)
-        placeholders = {}
+        placeholders: dict[str, Placeholder] = {}
         
         def find_placeholder_references(rules: Rules):
             for placeholder_identifier, placeholder in rules.placeholders.items():
@@ -200,59 +204,82 @@ def load_json_rules(filename) -> Rules|None:
                 raw_pattern_string = "|".join([template.template for templates in placeholder.categories.values() for template in templates ])
                 placeholder.pattern_string = raw_pattern_string
 
-            '''
-            deep_placeholders_sorted = sorted(list(deep_placeholders.items()), key=lambda e: e[1].max_references_depth)
-            for (placeholder_identifier, placeholder) in deep_placeholders_sorted:
-                raw_pattern_string = ""
-                for templates in placeholder.categories.values():
-                    for template in templates:
-                        replaced_template = (template.template + "a")[:-1]
-                        for template_placeholder in template.placeholders:
-                            replaced_template = replaced_template.replace(f"{{{template_placeholder}}}", f"(?:{rules.placeholders[template_placeholder].pattern_string})")
-                        raw_pattern_string = f"{raw_pattern_string}|{replaced_template}"
-                raw_pattern_string = raw_pattern_string[1:]
-                placeholder.pattern_string = raw_pattern_string
-            
-            for plcaeholder_identifier, placeholder in rules.placeholders.items():
-                print(plcaeholder_identifier, placeholder.pattern_string)
-            '''
-
-        def make_placeholder_template_list(templates):
-            return [make_placeholder_template(str(t["template"]), t["placeholders"], t["prolog"] if "prolog" in t else []) for t in templates]
+        def make_placeholder_template_list(identifier: str, templates):
+            result = []
+            placeholder_pattern = re.compile(r"{([A-Z]+(?:\|[A-Z]+)*)}")
+            placeholder_empty_pattern = re.compile(r"{}")
+            for template in templates:
+                # NOTE(kilian): Compute list of placeholders
+                template_string = template["template"]
+                template_placeholders = []
+                while True:
+                    placeholder_match = re.search(placeholder_pattern, template_string)
+                    if not placeholder_match:
+                        break
+                    template_placeholder_multiple = placeholder_match.group(1)
+                    template_placeholders.append(template_placeholder_multiple.split("|"))
+                    template_string = template_string[:placeholder_match.start(1)] + template_string[placeholder_match.end(1):]
+                
+                def configure_placeholders(result, template_string, i, template_placeholders, selected_placeholders):
+                    if i >= len(template_placeholders):
+                        result.append(make_placeholder_template(identifier, template_string, selected_placeholders[:], template["prolog"] if "prolog" in template else []))
+                    else:
+                        for p in template_placeholders[i]:
+                            selected_placeholders[i] = p
+                            replaced_template_string = re.sub(placeholder_empty_pattern, f"{{{p}}}", template_string, count=1)
+                            configure_placeholders(result, replaced_template_string, i + 1, template_placeholders, selected_placeholders)
+                
+                selected_placeholders = [0]*len(template_placeholders)
+                configure_placeholders(result, template_string, 0, template_placeholders, selected_placeholders)
+            #make_placeholder_template(str(t["template"]), t["placeholders"], t["prolog"] if "prolog" in t else []) for t in templates                    
+            return result
         
+        def update_templates_by_match(templates_by_match, all_templates: list[PlaceholderTemplate]):
+            for template in all_templates:
+                token = template.tokens[0]
+                # NOTE(kilian): If the first token is a placeholder, matching the start won't work like for the other templates, so make it match always by using ""
+                token_string = "" if token.is_placeholder else token.string
+                if token_string != "" and token_string not in templates_by_match:
+                    for key in templates_by_match.keys():
+                        if key != "" and token_string.startswith(key):
+                            token_string = key
+                            break
+                        if key.startswith(token_string):
+                            templates_by_match[token_string] = templates_by_match[key]
+                            del templates_by_match[key]
+                            break
+                    else:
+                        templates_by_match[token_string] = []
+                templates_by_match[token_string].append(template)
+        def make_templates_by_match_pattern(templates_by_match):
+            templates_start_patern_string = "|".join([re.escape(key) for key in templates_by_match.keys()])
+            return re.compile(f"^(?:{templates_start_patern_string})")
+
         def make_placeholder(categories: dict[str, list[PlaceholderTemplate]]):
             all_templates = [t for templates in categories.values() for t in templates]
-            by_patterns = {}
-            for template in all_templates:
-                assert(len(template.tokens) > 0)
-                # TODO(kilian): Edit category if same starting value
-                token0_string = "" if template.tokens[0].is_placeholder else template.tokens[0].string
-                if token0_string not in by_patterns:
-                    by_patterns[token0_string] = [template]
-                else:
-                    by_patterns[token0_string].append(template)
-            final_by_patterns = { "": [] }
-            for a, b in by_patterns.items():
-                if len(b) == 1:
-                    final_by_patterns[""].append(b[0])
-                elif len(b) > 1:
-                    final_by_patterns[a] = b
-            return Placeholder(categories, final_by_patterns, all_templates)
+            placeholder_templates_of_start_match = { "": [] }
+            update_templates_by_match(placeholder_templates_of_start_match, all_templates)
+            placeholder_start_pattern = make_templates_by_match_pattern(placeholder_templates_of_start_match)
+            return Placeholder(categories, placeholder_templates_of_start_match, all_templates, placeholder_start_pattern)
 
         for attribute_identifier, attribute_values in data["ATTRIBUTES"].items():
-            placeholders[attribute_identifier] = make_placeholder({ "": [make_placeholder_template(str(value), [], []) for value in attribute_values] })
+            placeholders[attribute_identifier] = make_placeholder({ "": [make_placeholder_template(attribute_identifier, str(value), [], []) for value in attribute_values] })
         del data["ATTRIBUTES"]
 
         for placeholder_identifier, placeholder_values in data.items():
             placeholder_type = type(placeholder_values)
             if placeholder_type == dict:
-                placeholders[placeholder_identifier] = make_placeholder({ value: make_placeholder_template_list(templates) for value, templates in placeholder_values.items() })
+                placeholders[placeholder_identifier] = make_placeholder({ value: make_placeholder_template_list(placeholder_identifier, templates) for value, templates in placeholder_values.items() })
             else:
                 assert(placeholder_type == list)
-                placeholders[placeholder_identifier] = make_placeholder({ "": make_placeholder_template_list(placeholder_values) })
+                placeholders[placeholder_identifier] = make_placeholder({ "": make_placeholder_template_list(placeholder_identifier, placeholder_values) })
         
-        rules = Rules(placeholders=placeholders)
+        templates_of_match = { "": [] }
+        for placeholder in placeholders.values():
+            update_templates_by_match(templates_of_match, placeholder.all_templates)
+        rules = Rules(placeholders=placeholders, templates_of_start_match=templates_of_match, templates_start_pattern=make_templates_by_match_pattern(templates_of_match))
         find_placeholder_references(rules)
+
         return rules
     return None
 
@@ -275,64 +302,57 @@ def template_from_text(rules: Rules, text: str):
         if placeholder_identifier in text:
             template = template.replace(placeholder_identifier, f"{{{placeholder_identifier}}}")
             used_placeholders.append(placeholder_identifier)
-    return make_placeholder_template(template, used_placeholders, [])
+    return make_placeholder_template("CUSTOM", template, used_placeholders, [])
 
 # NOTE(kilian): Returns a rule node or a reason why the template does not match.
 def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTemplate) -> tuple[RuleNode, str]|str:
     remaining_rule = rule
     nodes = []
-    i = -1
-    for token in template.tokens:
-        i += 1
+    for i, token in enumerate(template.tokens):
         if parser.print_tree:
             tabs_string = '\t'*parser.depth
             print(f"{tabs_string}[{i}] '{token.string}': '{remaining_rule}'")
         if token.is_placeholder:
             token_placeholder = rules.placeholders[token.string]
-            '''
-            if token_placeholder.pattern_string:
-                placeholder_match = re.match(token_placeholder.pattern_string, remaining_rule)
-                if placeholder_match is None:
-                    return f"Expected {token.string} ({token_placeholder.pattern_string}) at {remaining_rule[:20]}..."
-                
-            else:
-            '''
-            found_any = False
-            for pattern_string, by_pattern_templates in token_placeholder.by_patterns.items():
-                if pattern_string != "" and re.match(pattern_string, remaining_rule) is None:
-                    if parser.print_tree:
-                        print(f"\t{tabs_string}{pattern_string}: REJECTED")
-                    continue
+            
+            # NOTE(kilian): Use longest match (otherwise it will just match none "" anywhere possible)
+            possible_templates: list[PlaceholderTemplate] = []
+            for possible_match in re.findall(token_placeholder.start_pattern, remaining_rule):
+                possible_templates += token_placeholder.templates_of_start_match[possible_match]
 
-                for test_template in by_pattern_templates:
-                    parser.depth += 1
-                    parse_match = parse_rule_text_match(parser, remaining_rule, test_template)
-                    parser.depth -= 1
-                    if isinstance(parse_match, str):
-                        pass
-                    else:
-                        parse_match, remaining_rule = parse_match
-                        # TODO(kilian): Prevent this from happening somewhere else?
-                        if test_template.template != "none":
-                            nodes.append(parse_match)
-                        found_any = True
-                        break
+            longest_match_node = None
+            longest_match_length = 0
+            longest_match_remaining_rule = ""
+            for test_template in possible_templates:
+                parser.depth += 1
+                parse_match = parse_rule_text_match(parser, remaining_rule, test_template)
+                parser.depth -= 1
+                if isinstance(parse_match, str):
+                    pass
                 else:
-                    continue
-                break
-            if not found_any:
-                return f"ERROR"
+                    parse_match, new_remaining_rule = parse_match
+                    match_length = len(remaining_rule) - len(new_remaining_rule)
+                    if match_length >= longest_match_length:
+                        longest_match_node = parse_match
+                        longest_match_length = match_length
+                        longest_match_remaining_rule = new_remaining_rule
+                    # TODO(kilian): Prevent this from happening somewhere else?
+                    #if test_template.template != "":
+                    #    nodes.append(parse_match)
+            
+            if not longest_match_node:
+                return "ERROR"
+            nodes.append(longest_match_node)
+            remaining_rule = longest_match_remaining_rule
         else:
-            token_string = "" if token.string == "none" else token.string
-            token_pattern_string = f"\s*{re.escape(token_string)}\s*"
-            m = re.match(token_pattern_string, remaining_rule)
+            m = re.match(re.escape(token.string), remaining_rule)
             if not m:
                 return f"Expected '{token.string}', found '{remaining_rule[:len(token.string)]}'."
             remaining_rule = remaining_rule[m.end(0):]
     return (RuleNode(template, nodes), remaining_rule)
 
 def parse_rule_text(rules: Rules, rule: str, starting_template: PlaceholderTemplate) -> RuleNode|None:
-    parser = RuleParser(rules, depth=0, print_tree=False)
+    parser = RuleParser(rules, depth=0, print_tree=True)
     parse_match = parse_rule_text_match(parser, rule, starting_template)
     if isinstance(parse_match, str):
         return None
@@ -361,16 +381,22 @@ def rule_to_prolog(root: RuleNode):
         for node in nodes:
             if len(node.template.prolog) > 0:
                 arguments = []
+                number_arguments = []
                 for child in node.children:
                     if len(child.children) == 0:
-                        if child.template == "NUMBER":
-                            arguments = arguments + [child.template.template]
+                        if child.template.identifier == "NUMBER":
+                            number_arguments.append(child.template.template)
                         else:
-                            arguments = [child.template.template] + arguments
+                            if child.template.template != "":
+                                arguments.append(child.template.template)
                     else:
                         new_nodes.append(child)
+                arguments += number_arguments
+                prolog_string = node.template.prolog[0]
+                if not (prolog_string == "and" or prolog_string == "or"):
+                    arguments.append("Structure")
                 args_string = ", ".join(arguments)
-                prologs.append(node.template.prolog[0] + f"({args_string})")
+                prologs.append(prolog_string + f"({args_string})")
             else:
                 new_nodes += node.children
         nodes = new_nodes
@@ -384,7 +410,7 @@ def rule_to_prolog(root: RuleNode):
             prolog_accu.clear()
         else:
             x = ", ".join(prolog_accu)
-            op_free_prologs.append(f"and({x})")
+            op_free_prologs.append(f"and([{x}])")
     for prolog in prologs:
         if prolog == "or()":
             handle_or(op_free_prologs, prolog_accu)
@@ -395,49 +421,44 @@ def rule_to_prolog(root: RuleNode):
     handle_or(op_free_prologs, prolog_accu)
 
     x = ", ".join(op_free_prologs)
-    return f"or({x})" if len(op_free_prologs) > 1 else x
+    x = f"or([{x}])" if len(op_free_prologs) > 1 else x
+    x = f"generate_valid_structure([{x}], Structure)"
+    return x
 
 def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate) -> str:
     root = parse_rule_text(rules, rule, starting_template)
-    #print_rule_nodes(root)
+    print_rule_nodes(root)
     return rule_to_prolog(root)
 
 if __name__ == "__main__":
     rules = load_json_rules('zendo_rules.json')
-    starting_template = template_from_text(rules, "A structure must contain QUANTITY")
+    starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
 
-    # TODO(kilian): ????
-    #rule = "A structure must contain an odd number of total pieces"
-    #rule = "A structure must contain an odd number of block pieces" for none TODO above
-
-    #rule = "A structure must contain at least 0 vertical pyramid pieces"
+    # TODO(kilian): Handle INTERACTION correctly
+    rule = "A structure must contain at least 0 vertical pyramid pieces."
     #rule = "A structure must contain at least 2 wedge pieces or an even number of upright pieces and exactly 2 upright pieces touching a pyramid piece"
-    rule = random_rule(rules, starting_template)
+    #rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=True)
+    #rule = "A structure must contain an even number of blue pieces and exactly 1 red pieces on top of another upright piece."
     print("Rule:", rule)
 
-    prolog = rule_text_to_prolog(rules, rule, starting_template)
-    print("Prolog:", prolog)
-        
+    query = rule_text_to_prolog(rules, rule, starting_template)
+    print("Prolog:", query)
 
-'''
-def generate_scene():
+    #query = "generate_valid_structure([exactly(red,3,Structure)], Structure)"
+    #query = "generate_valid_structure([and([exactly(red,1,Structure), exactly(blue,1,Structure), exactly(yellow,1,Structure), exactly(flat,3,Structure)])], Structure)"
+    #query = "generate_valid_structure([at_least_interaction(block, blue, on_top_of, 3, Structure)], Structure)"
+    '''
     prolog = Prolog()
     rule_path = os.path.join(os.path.dirname(__file__), 'rules.pl')
     prolog.consult(rule_path)
 
-    #query = "generate_valid_structure([exactly(red,3,Structure)], Structure)"
-    #query = "generate_valid_structure([and([exactly(red,1,Structure), exactly(blue,1,Structure), exactly(yellow,1,Structure), exactly(flat,3,Structure)])], Structure)"
-    query = "generate_valid_structure([at_least_interaction(block, blue, on_top_of, 3, Structure)], Structure)"
     # Execute the query
     results = []
-    for _ in range(100):
+    for _ in range(1):
         prolog_query = prolog.query(query)
         for i, szene in enumerate(prolog_query):
             res = szene["Structure"]
             print(i, len(res), res)
             results.append(res)
+    '''
 
-
-# Example usage
-generate_scene()
-'''
