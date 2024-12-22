@@ -36,28 +36,29 @@ def check_beneath(object: ZendoObject):
 
     return beneath_objects
 
-def on_top(object_1: ZendoObject, target: ZendoObject):
+def on_top(object_1: ZendoObject, target: ZendoObject, margin: float = 0.0):
     """
-    Places object_1 ontop of object_2
-    :param object_1:
-    :param target:
+    Places object_1 ontop of target
+    :param object_1: Blender object to move.
+    :param target: Target blender object.
+    :param margin: Margin to offset the object to prevent clipping.
     """
     bpy.context.view_layer.update()
     if type(target) is Pyramid and object_1.pose == 'upright' and target.pose == 'upright':
         nested(object_1, target)
     else:
-        touching(object_1, target, face='top')
+        touching(object_1, target, face='top', margin=margin)
 
 
 
 
-def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left'):
+def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', margin: float = 0.0):
     """
     Place object_1 against object_2 along the specified axis.
-
     :param object_1: Blender object to move.
     :param object_2: Blender object to align with.
     :param face: The face of object_2 to align object_1 with as a string ('front', 'back', 'right', 'left', 'top').
+    :param margin: Margin to offset the object to prevent clipping.
     """
     # Ensure the requested face is valid
     bpy.context.view_layer.update()
@@ -87,10 +88,10 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left'):
     # Calculate the offset to align the objects
     if direction > 0:
         offset = obj2_max[axis_index] - obj1_min[axis_index]
-        #offset += 1
+        offset += margin
     else:
         offset = obj2_min[axis_index] - obj1_max[axis_index]
-        #offset -= 1
+        offset -= margin
 
     # Move object_1 to touch object_2
     object_1.obj.location[axis_index] += offset
@@ -115,10 +116,17 @@ def nested(object_1: ZendoObject, object_2: Pyramid):
     # Apply the same rotation to the first object
     obj_2_rot = object_2.obj.rotation_quaternion
     object_1.set_rotation_quaternion(obj_2_rot)
-    top_vector = object_2.get_top_vector()
+
+    mesh = object_2.obj.data
+    top_vertex = max(mesh.vertices, key=lambda v: v.co.z)
+    top_world = object_2.obj.matrix_world @ top_vertex.co
+    origin_world = object_2.obj.matrix_world @ mathutils.Vector((0, 0, 0))
+
+    # Create a vector from the origin to the top vertex
+    vector_to_top = top_world - origin_world
 
     # Move the first object alongside the top vector for offset
-    scaled_vector = top_vector * 0.4
+    scaled_vector = vector_to_top * 0.4
     object_1.move(scaled_vector)
 
     # Update properties of objects to reflect relation

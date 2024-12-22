@@ -207,9 +207,13 @@ class Pyramid(ZendoObject):
     def get_rays(self):
         mesh = self.obj.data
         tip = max(mesh.vertices, key=lambda v: v.co.z)  # Highest vertex in local Z
-        origin = project_to_xy(self.obj.matrix_world @ tip.co)
-        origin.z = 0.001  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
-        direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
+        if self.pose == 'flat' and self.grounded:
+            origin = project_to_xy(self.obj.matrix_world @ tip.co)
+            origin.z = 0.01  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
+            direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
+        else:
+            origin = self.obj.matrix_world @ tip.co
+            direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
         return [(origin, direction)]
 
 
@@ -227,12 +231,38 @@ class Block(ZendoObject):
         mesh = self.obj.data
         highest_z = max(v.co.z for v in mesh.vertices)
         top_vertices = [v for v in mesh.vertices if v.co.z == highest_z]
+
+        if len(top_vertices) < 4:
+            raise ValueError("Not enough vertices to interpolate rays.")
+
+        v1_world = self.obj.matrix_world @ top_vertices[0].co
+        v2_world = self.obj.matrix_world @ top_vertices[1].co
+        v3_world = self.obj.matrix_world @ top_vertices[2].co
+        v4_world = self.obj.matrix_world @ top_vertices[3].co
+
         rays = []
+
+        # Interpolate within the topmost face
+        for i in range(self.args.ray_interpolation + 2):  # +2 includes the edges
+            t1 = i / (self.args.ray_interpolation + 1)
+            # Interpolate along the two opposite edges
+            edge1_point = v1_world.lerp(v2_world, t1)
+            edge2_point = v4_world.lerp(v3_world, t1)
+
+            for j in range(self.args.ray_interpolation + 2):
+                t2 = j / (self.args.ray_interpolation + 1)
+                # Interpolate between the two edges to create grid points
+                interpolated_point = edge1_point.lerp(edge2_point, t2)
+
+                # Generate ray from the interpolated point
+                origin = interpolated_point
+                direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
+
+                rays.append((origin, direction))
 
         for v in top_vertices:
             origin = self.obj.matrix_world @ v.co
             direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
-            origin.z += 0.01
             rays.append((origin, direction))
         return rays
 
@@ -263,13 +293,12 @@ class Wedge(ZendoObject):
             t = i / (self.args.ray_interpolation + 1)  # Interpolation factor (0 to 1)
             interpolated_point = v1_world.lerp(v2_world, t)  # Linear interpolation
 
-            if self.pose == 'flat':
+            if self.pose == 'flat' and self.grounded:
                 origin = project_to_xy(interpolated_point)
                 origin.z = 0.01  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
                 direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
             else:
                 origin = interpolated_point
-                origin.z += 0.01
                 direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
 
             rays.append((origin, direction))

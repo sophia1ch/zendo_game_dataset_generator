@@ -173,6 +173,7 @@ def generate_structure(args, prolog_string: str, collection):
     placement_radius = args.placement_radius
     anchor_position = args.anchor_position
     collision_margin = args.collision_margin
+    touching_margin = args.touching_margin
 
     items = ast.literal_eval(prolog_string)
     instructions = []
@@ -202,8 +203,11 @@ def generate_structure(args, prolog_string: str, collection):
     for instruction in related_objects:
         idx = related_objects.index(instruction)
         current_object = generate_creation(args, instruction, collection)
+
+        # randomly rotate the objects in 90 degree steps
         random_rotation = random.choice([0, 90, 180, 270])
         current_object.rotate_z(random_rotation)
+
         if instruction['action'] == 'grounded':
             attempts = 0
             while True:
@@ -223,7 +227,7 @@ def generate_structure(args, prolog_string: str, collection):
                     break
                 else:
                     attempts += 1
-                    print(f"{current_object.get_namestring()} colliding with {colliding_objects}!")
+                    print(f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
         else:
             relation_type, target = generate_relation(instruction)
             attempts = 0
@@ -240,7 +244,7 @@ def generate_structure(args, prolog_string: str, collection):
                         face = random.choice(faces)
                     else:
                         face = faces[0]
-                    touching(current_object, target, face=face)
+                    touching(current_object, target, face=face, margin=touching_margin)
                     colliding_objects = check_collision(current_object, target)
                     if len(colliding_objects) == 0:
                         target.set_touching(face, current_object)
@@ -265,7 +269,7 @@ def generate_structure(args, prolog_string: str, collection):
                         print(f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
 
                 elif relation_type == 'on_top_of':
-                    on_top(current_object, target)
+                    on_top(current_object, target, margin=touching_margin)
                     break
 
     # Scene integrity check
@@ -277,8 +281,10 @@ def generate_structure(args, prolog_string: str, collection):
         if current_object.pose == 'upright' or current_object.pose == 'upside_down':
             continue
         pointing_objects = check_pointing(current_object)
+        colliding_objects = check_collision(current_object)
         print(
-            f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
+            f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!\n"
+            f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
         if instruction['action'].split('(')[0] == 'pointing':
             if len(pointing_objects) != 1:
                 integrity = False
@@ -286,10 +292,12 @@ def generate_structure(args, prolog_string: str, collection):
             if len(pointing_objects) != 0:
                 integrity = False
     print("Integrity:", integrity)
-    if not integrity:
 
+    """
+    if not integrity:
         for obj in collection.objects:
             bpy.data.objects.remove(obj, do_unlink=True)
         ZendoObject.instances.clear()
 
-        generate_structure(args, prolog_string, collection)
+        generate_structure(args, prolog_string, collection)"""
+

@@ -14,11 +14,12 @@ stacking_offset: 0.1 # Offset for stacking objects ontop of each other
 
 
 # Config for scene generation
-placement_radius: 5 # Radius for placement of grounded objects
+placement_radius: 10 # Radius for placement of grounded objects
 anchor_position: [0, 0, 0] # Center position of object placement radius
 random_face_choice: True # Choose random faces when resolving relations or follow predefined sequence
-random_object_rotation: False
-generation_attempts: 10
-collision_margin: 0.0
-render_rays: True
-ray_interpolation: 10
+random_object_rotation: False # Randomly rotates the objects
+generation_attempts: 10 # Number of attempts to try to place an object before retrying with a different scene
+collision_margin: 0.0 # Margin to extend the bounding boxes of objects during the collision check to ensure proper separation when placing objects
+touching_margin: 0.01
+render_rays: True # Defines if the rays used for calculating pointing should be rendered in the scene
+ray_interpolation: 10 # Interpolation steps for casting the rays, defines the amount of interpolated rays between the actual points defined by the vertices of the object
