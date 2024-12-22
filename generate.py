@@ -293,11 +293,11 @@ def generate_structure(args, prolog_string: str, collection):
                 integrity = False
     print("Integrity:", integrity)
 
-    """
+
     if not integrity:
         for obj in collection.objects:
             bpy.data.objects.remove(obj, do_unlink=True)
         ZendoObject.instances.clear()
 
-        generate_structure(args, prolog_string, collection)"""
+        generate_structure(args, prolog_string, collection)
 

@@ -29,7 +29,7 @@ def main(args):
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
 
-    example_string = "['item(5, green, block, flat, pointing(4))', 'item(4, yellow, wedge, flat, touching(2))', 'item(3, yellow, block, flat, on_top_of(4))', 'item(2, yellow, pyramid, upright, grounded)', 'item(1, red, block, flat, on_top_of(3))', 'item(0, blue, pyramid, flat, on_top_of(2))']"
+    example_string = "['item(5, green, block, flat, pointing(4))', 'item(4, yellow, block, flat, touching(2))', 'item(3, yellow, block, flat, on_top_of(4))', 'item(2, yellow, block, upright, grounded)', 'item(1, red, block, flat, on_top_of(3))', 'item(0, blue, block, flat, on_top_of(2))']"
 
     #example_string = "['item(5, red, block, vertical, pointing(2))', 'item(4, yellow, block, flat, pointing(3))', 'item(3, yellow, pyramid, vertical, pointing(0))', 'item(2, blue, wedge, vertical, on_top_of(4))', 'item(1, red, pyramid, upright, touching(2))', 'item(0, red, block, flat, on_top_of(2))']"
     collection = bpy.data.collections.new("Structure")
