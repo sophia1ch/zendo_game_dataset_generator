@@ -81,6 +81,10 @@ class ZendoObject:
     def set_position(self, position: Vector):
         self.obj.location = position
 
+    def set_position_xy(self, position: Vector):
+        self.obj.location.x = position.x
+        self.obj.location.y = position.y
+
     def get_position(self):
         return self.obj.location
 
@@ -224,9 +228,11 @@ class Block(ZendoObject):
         highest_z = max(v.co.z for v in mesh.vertices)
         top_vertices = [v for v in mesh.vertices if v.co.z == highest_z]
         rays = []
+
         for v in top_vertices:
             origin = self.obj.matrix_world @ v.co
             direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
+            origin.z += 0.01
             rays.append((origin, direction))
         return rays
 
@@ -235,7 +241,7 @@ class Wedge(ZendoObject):
     poses = {
         "upright": Quaternion(Vector((0.0, 0.0, 0.0)), math.radians(0)),
         "cheesecake": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(90)),
-        "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
+        "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106.1))
     }
 
     def __init__(self, args, idx: int, color: str, pose: str):
@@ -245,15 +251,27 @@ class Wedge(ZendoObject):
         mesh = self.obj.data
         highest_z = max(v.co.z for v in mesh.vertices)
         top_vertices = [v for v in mesh.vertices if v.co.z == highest_z]
+
+        if len(top_vertices) < 2:
+            raise ValueError("Not enough vertices to interpolate rays.")
+
+        v1_world = self.obj.matrix_world @ top_vertices[0].co
+        v2_world = self.obj.matrix_world @ top_vertices[1].co
+
         rays = []
-        for v in top_vertices:
+        for i in range(self.args.ray_interpolation + 2):  # +2 includes the start and end points
+            t = i / (self.args.ray_interpolation + 1)  # Interpolation factor (0 to 1)
+            interpolated_point = v1_world.lerp(v2_world, t)  # Linear interpolation
+
             if self.pose == 'flat':
-                origin = project_to_xy(self.obj.matrix_world @ v.co)
-                origin.z = 0.001  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
+                origin = project_to_xy(interpolated_point)
+                origin.z = 0.01  # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
                 direction = project_to_xy(self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1))).normalized()
             else:
-                origin = self.obj.matrix_world @ v.co
+                origin = interpolated_point
+                origin.z += 0.01
                 direction = self.obj.matrix_world.to_3x3() @ mathutils.Vector((0, 0, 1)).normalized()
+
             rays.append((origin, direction))
         return rays
 

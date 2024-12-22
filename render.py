@@ -29,11 +29,12 @@ def main(args):
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
 
-    example_string = "['item(3, yellow, wedge, cheesecake, pointing(1))', 'item(2, red, wedge, upright, grounded)', 'item(1, red, wedge, flat, grounded)', 'item(0, red, block, vertical, grounded)']"
+    example_string = "['item(5, yellow, pyramid, vertical, touching(0))', 'item(4, red, block, flat, on_top_of(2))', 'item(3, red, wedge, cheesecake, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, yellow, block, upside_down, touching(2))', 'item(0, red, wedge, flat, grounded)']"
 
     #example_string = "['item(5, red, block, vertical, pointing(2))', 'item(4, yellow, block, flat, pointing(3))', 'item(3, yellow, pyramid, vertical, pointing(0))', 'item(2, blue, wedge, vertical, on_top_of(4))', 'item(1, red, pyramid, upright, touching(2))', 'item(0, red, block, flat, on_top_of(2))']"
-
-    generate_structure(args, example_string)
+    collection = bpy.data.collections.new("Structure")
+    bpy.context.scene.collection.children.link(collection)
+    generate_structure(args, example_string, collection)
 
 
     #######################################################

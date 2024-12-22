@@ -10,10 +10,9 @@ import random
 from mathutils import Vector
 
 
-def check_pointing(observer: ZendoObject, render_rays: bool = False):
+def check_pointing(observer: ZendoObject):
     """
     Checks if the given zendo object points towards an object
-    :param render_rays: Defines if the pointing rays should be added to the scene
     :param observer: The zendo object to check
     :return: A list of object it currently points towards
     """
@@ -24,6 +23,8 @@ def check_pointing(observer: ZendoObject, render_rays: bool = False):
         ray_path = [origin.copy()]
         direction = direction.normalized()
         current_location = origin.copy()
+        #origin.z = 0.001 # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
+        hit_location = origin.copy()
         while True:
             hit, hit_location, _, _, obj, _ = bpy.context.scene.ray_cast(
                 bpy.context.view_layer.depsgraph, current_location, direction
@@ -35,7 +36,8 @@ def check_pointing(observer: ZendoObject, render_rays: bool = False):
                 if zendo_obj is not None and zendo_obj not in results and zendo_obj is not observer:
                     ray_path.append(hit_location)
                     results.append(zendo_obj)
-                current_location = hit_location + direction * 0.001
+                current_location = hit_location + direction * 0.01
+                hit_location *= 1.01
 
     return results
 
@@ -132,7 +134,7 @@ def generate_relation(instruction):
     return relation_type, target
 
 
-def generate_creation(args, instruction):
+def generate_creation(args, instruction, collection):
     """
         Generates Python command for creating an object
 
@@ -160,12 +162,14 @@ def generate_creation(args, instruction):
     elif shape == 'pyramid':
         obj = zendo_objects.Pyramid(args, idx, color, orientation)
 
+    collection.objects.link(obj.obj)
+
     if args.random_object_rotation:
         d = random.uniform(0, 360)
         obj.rotate_z(d)
     return obj
 
-def generate_structure(args, prolog_string: str):
+def generate_structure(args, prolog_string: str, collection):
     placement_radius = args.placement_radius
     anchor_position = args.anchor_position
     collision_margin = args.collision_margin
@@ -191,22 +195,29 @@ def generate_structure(args, prolog_string: str):
     related_objects = get_relations(instructions)
     if len(related_objects) != len(instructions):
         raise Exception(f"Rule not resolvable!\n {instructions}")
+
+    integrity = True
+
     # Place related objects
     for instruction in related_objects:
         idx = related_objects.index(instruction)
-        current_object = generate_creation(args, instruction)
+        current_object = generate_creation(args, instruction, collection)
+        random_rotation = random.choice([0, 90, 180, 270])
+        current_object.rotate_z(random_rotation)
         if instruction['action'] == 'grounded':
             attempts = 0
             while True:
                 if attempts >= args.generation_attempts:
-                    raise Exception(f"Exceded maximum generation attempts!")
+                    print(f"Exceeded maximum generation attempts!")
+                    integrity = False
+                    break
                 # Try to place the object at a random position
                 if idx == 0:
                     pos = Vector(anchor_position)
                 else:
                     pos = get_random_position(anchor=anchor_position, radius=placement_radius)
 
-                current_object.move(pos)
+                current_object.set_position_xy(pos)
                 colliding_objects = check_collision(current_object, margin=collision_margin)
                 if len(colliding_objects) == 0:
                     break
@@ -218,7 +229,10 @@ def generate_structure(args, prolog_string: str):
             attempts = 0
             while True:
                 if attempts >= args.generation_attempts:
-                    raise Exception(f"Exceded maximum generation attempts!")
+                    print(f"Exceeded maximum generation attempts!")
+                    integrity = False
+                    break
+
                 if relation_type == 'touching':
                     random_faces = args.random_face_choice
                     faces = target.get_free_face()
@@ -227,7 +241,7 @@ def generate_structure(args, prolog_string: str):
                     else:
                         face = faces[0]
                     touching(current_object, target, face=face)
-                    colliding_objects = check_collision(current_object, target, margin=collision_margin)
+                    colliding_objects = check_collision(current_object, target)
                     if len(colliding_objects) == 0:
                         target.set_touching(face, current_object)
                         axis, direction = face_map[face]
@@ -236,11 +250,11 @@ def generate_structure(args, prolog_string: str):
                         break
                     else:
                         attempts += 1
-                        print(f"{current_object.get_namestring()} colliding with {colliding_objects}!")
+                        print(f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
 
                 elif relation_type == 'pointing':
                     pos = get_random_position(anchor=anchor_position, radius=placement_radius)
-                    current_object.move(pos)
+                    current_object.set_position_xy(pos)
                     pointing(current_object, target)
                     colliding_objects = check_collision(current_object, margin=collision_margin)
                     pointing_objects = check_pointing(current_object)
@@ -255,12 +269,14 @@ def generate_structure(args, prolog_string: str):
                     break
 
     # Scene integrity check
-    integrity = True
+
     print("Integrity check")
     for instruction in related_objects:
         # Check pointing
         current_object = zendo_objects.get_object(instruction['id'])
-        pointing_objects = check_pointing(current_object, render_rays=args.render_rays)
+        if current_object.pose == 'upright' or current_object.pose == 'upside_down':
+            continue
+        pointing_objects = check_pointing(current_object)
         print(
             f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
         if instruction['action'].split('(')[0] == 'pointing':
@@ -269,5 +285,11 @@ def generate_structure(args, prolog_string: str):
         else:
             if len(pointing_objects) != 0:
                 integrity = False
+    print("Integrity:", integrity)
+    if not integrity:
 
-    print(integrity)
+        for obj in collection.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        ZendoObject.instances.clear()
+
+        generate_structure(args, prolog_string, collection)
