@@ -169,11 +169,16 @@ def generate_creation(args, instruction, collection):
         obj.rotate_z(d)
     return obj
 
-def generate_structure(args, prolog_string: str, collection):
+def generate_structure(args, prolog_string: str, collection, attempt: int = 0):
+
+    if attempt > args.generation_attempts:
+        raise Exception(f"Exceeded generation attempts, unable to generate a scene for rule:\n {prolog_string}")
+
     placement_radius = args.placement_radius
     anchor_position = args.anchor_position
     collision_margin = args.collision_margin
     touching_margin = args.touching_margin
+    placement_attempts = args.placement_attempts
 
     items = ast.literal_eval(prolog_string)
     instructions = []
@@ -211,8 +216,8 @@ def generate_structure(args, prolog_string: str, collection):
         if instruction['action'] == 'grounded':
             attempts = 0
             while True:
-                if attempts >= args.generation_attempts:
-                    print(f"Exceeded maximum generation attempts!")
+                if attempts >= placement_attempts:
+                    print(f"Exceeded maximum placement attempts!")
                     integrity = False
                     break
                 # Try to place the object at a random position
@@ -232,8 +237,8 @@ def generate_structure(args, prolog_string: str, collection):
             relation_type, target = generate_relation(instruction)
             attempts = 0
             while True:
-                if attempts >= args.generation_attempts:
-                    print(f"Exceeded maximum generation attempts!")
+                if attempts >= placement_attempts:
+                    print(f"Exceeded maximum placement attempts!")
                     integrity = False
                     break
 
@@ -299,5 +304,5 @@ def generate_structure(args, prolog_string: str, collection):
             bpy.data.objects.remove(obj, do_unlink=True)
         ZendoObject.instances.clear()
 
-        generate_structure(args, prolog_string, collection)
+        generate_structure(args, prolog_string, collection, attempt=attempt + 1)
 
