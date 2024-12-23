@@ -351,8 +351,8 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
             remaining_rule = remaining_rule[m.end(0):]
     return (RuleNode(template, nodes), remaining_rule)
 
-def parse_rule_text(rules: Rules, rule: str, starting_template: PlaceholderTemplate) -> RuleNode|None:
-    parser = RuleParser(rules, depth=0, print_tree=True)
+def parse_rule_text(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print=False) -> RuleNode|None:
+    parser = RuleParser(rules, depth=0, print_tree=debug_print)
     parse_match = parse_rule_text_match(parser, rule, starting_template)
     if isinstance(parse_match, str):
         return None
@@ -374,74 +374,92 @@ def print_rule_nodes(root: RuleNode):
         depth += 1
 
 def rule_to_prolog(root: RuleNode):
-    prologs = []
-    nodes = [root]
-    while nodes:
-        new_nodes = []
-        for node in nodes:
-            if len(node.template.prolog) > 0:
-                arguments = []
-                number_arguments = []
-                for child in node.children:
-                    if len(child.children) == 0:
-                        if child.template.identifier == "NUMBER":
-                            number_arguments.append(child.template.template)
-                        else:
-                            if child.template.template != "":
-                                arguments.append(child.template.template)
+    @dataclass
+    class PrologCall:
+        function_name: str|None = None
+        quantity: list[str] = field(default_factory=lambda: [])
+        number: list[str] = field(default_factory=lambda: [])
+        interaction: list[str] = field(default_factory=lambda: [])
+        interaction_name: str|None = None
+
+    def nodes_dfs(ors: list[list[PrologCall]], node: RuleNode):
+        # NOTE(kilian): Generates an "or" list of "anded" PrologCall objects
+        for child in node.children:
+            if len(child.template.prolog) == 0:
+                if node.template.identifier == "QUANTITY":
+                    if child.template.identifier == "NUMBER":
+                        ors[-1][-1].number.append(child.template.template)
                     else:
-                        new_nodes.append(child)
-                arguments += number_arguments
-                prolog_string = node.template.prolog[0]
-                if not (prolog_string == "and" or prolog_string == "or"):
-                    arguments.append("Structure")
-                args_string = ", ".join(arguments)
-                prologs.append(prolog_string + f"({args_string})")
+                        ors[-1][-1].quantity.append(child.template.template)
+                elif node.template.identifier == "INTERACTION":
+                    ors[-1][-1].interaction.append(child.template.template)
+                else:
+                    print(f"ERROR: Unexpected template identifier '{node.template.identifier}' with no prolog data.")
             else:
-                new_nodes += node.children
-        nodes = new_nodes
+                match child.template.identifier:
+                    case "INTERACTION":
+                        ors[-1][-1].interaction_name = child.template.prolog[0]
+                    case "QUANTITY":
+                        ors[-1][-1].function_name = child.template.prolog[0]
+                    case "OPERATION":
+                        if "and" in child.template.template:
+                            ors[-1].append(PrologCall())
+                        elif "or" in child.template.template:
+                            ors.append([PrologCall()])
+                nodes_dfs(ors, child)
 
-    # NOTE(kilian): This is really ugly
-    op_free_prologs = []
-    prolog_accu = []
-    def handle_or(op_free_prologs, prolog_accu):
-        if len(prolog_accu) == 1:
-            op_free_prologs += prolog_accu
-            prolog_accu.clear()
+    prologs = [[PrologCall()]]
+    nodes_dfs(prologs, root)
+
+    anded_call_strings = []
+    for anded_calls in prologs:
+        call_strings = []
+        for call in anded_calls:
+            # NOTE(kilian): Combine arguments in correct order according to rules.pl
+            argument_parts = []
+            if call.quantity:
+                argument_parts.append(", ".join(call.quantity))
+            if call.interaction:
+                argument_parts.append(", ".join(call.interaction))
+            if call.interaction_name:
+                argument_parts.append(call.interaction_name)
+            if call.number:
+                argument_parts.append(", ".join(call.number))
+            argument_parts.append("Structure")
+
+            call_strings.append(f"{call.function_name}({', '.join(argument_parts)})")
+
+        if len(call_strings) == 1:
+            anded_call_strings.append(call_strings[0])
         else:
-            x = ", ".join(prolog_accu)
-            op_free_prologs.append(f"and([{x}])")
-    for prolog in prologs:
-        if prolog == "or()":
-            handle_or(op_free_prologs, prolog_accu)
-        elif prolog == "and()":
-            pass
-        else:
-            prolog_accu.append(prolog)
-    handle_or(op_free_prologs, prolog_accu)
+            anded_call_strings.append(f"and([{', '.join(call_strings)}])")
 
-    x = ", ".join(op_free_prologs)
-    x = f"or([{x}])" if len(op_free_prologs) > 1 else x
-    x = f"generate_valid_structure([{x}], Structure)"
-    return x
+    for orx in anded_call_strings:
+        print(orx)
+    ored_call_string = f"or([{', '.join(anded_call_strings)}])" if len(anded_call_strings) != 1 else anded_call_strings[0]
+    return f"generate_valid_structure([{ored_call_string}], Structure)"
 
-def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate) -> str:
-    root = parse_rule_text(rules, rule, starting_template)
-    print_rule_nodes(root)
+def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print_parse=False, debug_print_nodes=False) -> str:
+    root = parse_rule_text(rules, rule, starting_template, debug_print=debug_print_parse)
+    if debug_print_nodes:
+        print_rule_nodes(root)
     return rule_to_prolog(root)
 
 if __name__ == "__main__":
     rules = load_json_rules('zendo_rules.json')
     starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
 
-    # TODO(kilian): Handle INTERACTION correctly
-    rule = "A structure must contain at least 0 vertical pyramid pieces."
-    #rule = "A structure must contain at least 2 wedge pieces or an even number of upright pieces and exactly 2 upright pieces touching a pyramid piece"
-    #rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=True)
+    # TODO(kilian):
+    # 1 no interaction after and or or
+    # 2 remove used attributes from list of choices
+
+    #rule = "A structure must contain at least 0 vertical pyramid pieces."
+    #rule = "A structure must contain at least 2 wedge pieces or an even number of upright pieces and exactly 2 upright pieces touching a pyramid piece."
+    rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=True)
     #rule = "A structure must contain an even number of blue pieces and exactly 1 red pieces on top of another upright piece."
     print("Rule:", rule)
 
-    query = rule_text_to_prolog(rules, rule, starting_template)
+    query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=True)
     print("Prolog:", query)
 
     #query = "generate_valid_structure([exactly(red,3,Structure)], Structure)"
