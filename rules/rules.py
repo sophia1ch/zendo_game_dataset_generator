@@ -446,37 +446,34 @@ def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderT
     return rule_to_prolog(root)
 
 if __name__ == "__main__":
-    rules = load_json_rules('zendo_rules.json')
-    starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
-
     # TODO(kilian):
     # 1 no interaction after and or or
     # 2 remove used attributes from list of choices
+    # 3 check valid orientations for shapes (pyramid can not be upside_down, etc.)
+    # 4 grounded as interaction is not handled right (wrong prolog query format)
 
-    #rule = "A structure must contain at least 0 vertical pyramid pieces."
-    #rule = "A structure must contain at least 2 wedge pieces or an even number of upright pieces and exactly 2 upright pieces touching a pyramid piece."
-    rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=True)
-    #rule = "A structure must contain an even number of blue pieces and exactly 1 red pieces on top of another upright piece."
-    print("Rule:", rule)
-
-    query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=True)
-    print("Prolog:", query)
-
-    #query = "generate_valid_structure([exactly(red,3,Structure)], Structure)"
-    #query = "generate_valid_structure([and([exactly(red,1,Structure), exactly(blue,1,Structure), exactly(yellow,1,Structure), exactly(flat,3,Structure)])], Structure)"
-    #query = "generate_valid_structure([at_least_interaction(block, blue, on_top_of, 3, Structure)], Structure)"
-    '''
     prolog = Prolog()
     rule_path = os.path.join(os.path.dirname(__file__), 'rules.pl')
     prolog.consult(rule_path)
 
-    # Execute the query
+    rules = load_json_rules('rules/zendo_rules.json')
+    starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
+
+    # Execute the random queries
     results = []
-    for _ in range(1):
+    for _ in range(10):
+        rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=False)
+        query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=False)
         prolog_query = prolog.query(query)
         for i, szene in enumerate(prolog_query):
-            res = szene["Structure"]
-            print(i, len(res), res)
-            results.append(res)
-    '''
+            structure = szene["Structure"]
+            results.append([rule, query, structure])
+        print(query)
+
+    file_name = "rules/rules_output.txt"
+    with open(file_name, "w") as file:
+        for rule, query, structure in results:
+            file.write(str(rule) + "\n" + str(structure) + "\n\n")
+    print("Done: saved to " + file_name)
+
 

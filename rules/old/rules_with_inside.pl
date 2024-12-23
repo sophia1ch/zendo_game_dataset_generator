@@ -20,9 +20,9 @@ interaction(grounded). % specific case: handled like attribute and not an intera
 interaction(touching(_)).
 interaction(pointing(_)).
 interaction(on_top_of(_)).
-%interaction(inside(_)).
+interaction(inside(_)).
 
-max_items(7).
+max_items(12).
 
 
 
@@ -88,7 +88,7 @@ assign_random_id(inside(_), MaxId, Id, inside(T)) :-
     T \= Id.
 
 item_has_attribute(Attr, item(_,C,S,O,I)) :-
-    Attr = C; Attr = S; Attr = O; (nonvar(I), I =.. [Attr|_]).
+    Attr = C; Attr = S; Attr = O; Attr = I.
 
 item_has_two_attributes(A1, A2, Item) :-
     item_has_attribute(A1, Item),
@@ -119,61 +119,29 @@ decode_interaction(_, _, none).
 
 % Check different constraints for the interaction between items
 interaction_constraint_check(Structure) :-
-    %% On_top_of %%
-    % Ensure all on_top_of attributes have the right orientation and check if the stacking is valid
-    forall(
-        member(item(SourceId,_,_,SourceOrientation,on_top_of(TargetId)), Structure),
-        (
-            member(item(TargetId, _, TargetShape, TargetOrientation, TargetInteraction), Structure),
-            (
-                % Grounded cases
-                (TargetInteraction = grounded,
-                 ((TargetShape = block);
-                  (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)));
-                % Pointing cases
-                (TargetInteraction = pointing(SourceId),
-                 ((TargetShape = block);
-                  (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)));
-                % Touching cases
-                (TargetInteraction = touching(_),
-                 ((TargetShape = block);
-                  (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)));
-                % On top of another item
-                (TargetInteraction = on_top_of(AnotherId),
-                 AnotherId \= SourceId,
-                 ((TargetShape = block);
-                  (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)))
-            )
-        )
+    % Fail if there are more than one item on_top_of of another item
+    % #TODO: check! sometimes there are more than one item on another item
+    \+ ( % Negation operator
+        member(item(TargetId,_,Shape,Orientation,_), Structure),
+        (Shape \= block, Orientation \= flat),
+        findall(SourceId,
+                (member(item(SourceId,_,_,_,Interaction), Structure),
+                Interaction = on_top_of(TargetId)),
+                Sources),
+        length(Sources, Count),
+        Count > 1
     ),
-    % Allow a flat block to have up to two items on_top_of it; other items can only have one
-    forall(
-        member(item(TargetId, _, TargetShape, TargetOrientation, _), Structure),
-        (
-            (TargetShape = block, TargetOrientation = flat ->
-                (
-                    findall(SourceId, member(item(SourceId, _, _, _, on_top_of(TargetId)), Structure), Sources),
-                    length(Sources, Count),
-                    Count =< 2
-                );
-                (
-                    findall(SourceId, member(item(SourceId, _, _, _, on_top_of(TargetId)), Structure), Sources),
-                    length(Sources, Count),
-                    Count =< 1
-                )
-            )
-        )
+    % Only a flat block item can have two items on top of it
+    % #TODO: doesn't working
+    \+ (
+        member(item(TargetId,_,block,flat,_), Structure),
+        findall(SourceId,
+                (member(item(SourceId,_,_,_,Interaction), Structure),
+                Interaction = on_top_of(TargetId)),
+                Sources),
+        length(Sources, Count),
+        Count > 2
     ),
-    % Ensure no loops in the on_top_of chain
-    forall(
-        member(item(SourceId, _, _, _, on_top_of(_)), Structure),
-        \+ has_loop(SourceId, Structure)
-    ),
-    %% Touching %%
     % Every item can only have max 4 touching items (above = on_top_of, below = none)
     \+ (
         member(item(TargetId,_,_,_,_), Structure),
@@ -184,6 +152,18 @@ interaction_constraint_check(Structure) :-
         length(Sources, Count),
         Count > 4
     ),
+    % Ensure all on_top_of attributes have the same orientation as the related attribute
+    % Also ensure, that the target item has right interaction
+    % #TODO: check for loops and ensure right constraints on on_top_of
+    forall(
+        member(item(SourceId,_,_,_,on_top_of(TargetId)), Structure),
+        (member(item(TargetId,_,_,_,grounded), Structure);
+        member(item(TargetId,_,_,_,pointing(SourceId)), Structure);
+        member(item(TargetId,_,_,_,touching(_)), Structure);
+        member(item(TargetId,_,_,_,inside(SourceId)), Structure);
+        member(item(TargetId,_,_,_,on_top_of(AnotherId)), Structure),
+        AnotherId \= SourceId)
+    ),
     % Ensure at least one touching element is grounded via grounded or pointing (all pointing are grounded)
     % Or the touching item is part of a chain of touching items
     forall(
@@ -192,7 +172,18 @@ interaction_constraint_check(Structure) :-
         member(item(TargetId,_,_,_,touching(_)), Structure);
         member(item(TargetId,_,_,_,pointing(_)), Structure))
     ),
-    %% Pointing %%
+    % Every item can only have one item inside and is therefore on_top_of it or inside another one (chain)
+    % Only need to check for inside and on_top_of condition, because on_top_of is limited to one
+    % Ensures that orientation of source and target is the same
+    % #TODO: check for loops
+    forall(
+        member(item(SourceId, _, Shape, SourceOrientation, inside(TargetId)), Structure),
+        ((member(item(TargetId, _, _, TargetOrientation, on_top_of(SourceId)), Structure);
+        member(item(TargetId, _, _, TargetOrientation, inside(AnotherId)), Structure),
+        AnotherId \= SourceId),
+        Shape = pyramid,
+        SourceOrientation = TargetOrientation)
+    ),
     % All pointing items are grounded! Loops allowed
     % Flat and cheesecake items can point only to grounded items
     % Upright and vertical items can only point to items with on_top_of(SourceId)
@@ -207,17 +198,6 @@ interaction_constraint_check(Structure) :-
         member(item(SourceId, _, _, vertical, _), Structure),
         member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure)))
     ).
-
-% Helper functions for checking, if on_top_of creates a loop!
-has_loop(StartId, Structure) :-
-    has_loop_helper(StartId, StartId, Structure, []).
-
-has_loop_helper(_, CurrentId, _, Visited) :-
-    member(CurrentId, Visited), % If the current ID has already been visited, there's a loop
-    !.
-has_loop_helper(StartId, CurrentId, Structure, Visited) :-
-    member(item(CurrentId, _, _, _, on_top_of(NextId)), Structure),
-    has_loop_helper(StartId, NextId, Structure, [CurrentId|Visited]).
 
 
 
