@@ -1,0 +1,33 @@
+generate_valid_structure([list of rules which must be true], Structure)
+
+
+A structure must contain ...
+
+at least 3 red pieces
+at_least(red, 3, Structure)
+
+at least 2 blue pyramid pieces
+at_least(blue, pyramid, 2, Structure) --> Ordering of attr irrelevant
+
+exactly 1 flat piece
+exactly(flat, 1, Structure)
+
+more pyramid pieces than red pieces
+more_than(pyramid, red, Structure)  --> Ordering important!
+
+an even/odd number of total pieces
+even_number_of(Structure)
+
+an even/odd number of red pieces
+odd_number_of(red, Structure)
+
+either 2 or 3 total pieces
+either_or(2, 3, Structure)
+
+at least 1 red piece and/or exactly 2 blue pieces
+and([at_least(red, 1, Structure), exactly(blue, 2, Structure)])
+
+
+Interaction:
+exactly 2 red pieces touching another pyramid piece
+exactly_interaction(red, pyramid, touching, 2, Structure)
