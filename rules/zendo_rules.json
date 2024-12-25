@@ -97,7 +97,7 @@
       "prolog": ["touching"]
     },
     {
-      "template": "grounded pieces",
+      "template": "grounded",
       "prolog": ["grounded"]
     },
     {

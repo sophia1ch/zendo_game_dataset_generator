@@ -48,13 +48,14 @@ class RuleParser:
 class TemplateGenerator:
     rules: Rules
     depth: int
-    used_operators: list[str]
+    used_templates: dict[str, list[PlaceholderTemplate]]
     two_random_steps: bool = False
     print_tree: bool = False
 
-def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: str, two_steps: bool=False, used_operators: list[str]|None=None) -> PlaceholderTemplate|str:
+def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: str, two_steps: bool=False, used_templates: dict[str, list[PlaceholderTemplate]]|None = None, no_interaction_when_operator_used: bool = True) -> PlaceholderTemplate|str:
     # NOTE(kilian): if two_steps is true, first a random placeholder category (like "at least" for QUANTITY) is drawn randomly,
     # then a template of that category. Otherwise, a random template is drawn from the templates of all placeholder categories
+    # if no_interaction_when_operator_used is True, then no templates with INTERACTION placeholder will be considered if any operator was used previously
 
     if placeholder_identifier not in rules.placeholders:
         return f"[ERROR: Unknown placeholder {placeholder_identifier}]"
@@ -72,7 +73,7 @@ def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: s
             
         placeholder_templates = placeholder.categories[picked_placeholder_value]
         if len(placeholder_templates) == 0:
-                return f"[ERROR: No templates for placeholder {placeholder_identifier}] at value {picked_placeholder_value}"
+            return f"[ERROR: No templates for placeholder {placeholder_identifier}] at value {picked_placeholder_value}"
     else:
         all_placeholder_templates = []
         for _, placeholder_templates in rules.placeholders[placeholder_identifier].categories.items():
@@ -80,20 +81,32 @@ def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: s
         placeholder_templates = all_placeholder_templates
 
         if len(placeholder_templates) == 0:
-                return f"[ERROR: No templates for placeholder {placeholder_identifier}]"
+            return f"[ERROR: No templates for placeholder {placeholder_identifier}]"
     
+    picked_template = None
     if placeholder_identifier == "OPERATION":
+        # NOTE(kilian): If any operator has already been used, choose the none operator (pick by choosing the one without placeholders)
+        used_operators = used_templates.get(placeholder_identifier, [])
         if len(used_operators) > 0:
-            # TODO(kilian): Better way to pick none template
             for template in placeholder_templates:
                 if len(template.placeholders) == 0:
                     picked_template = template
-        else:
-            picked_template = random.choice([template for template in placeholder_templates if template.template not in used_operators])
-            if len(picked_template.placeholders) > 0: # Check if operation is none (a word independent way of checking)
-                used_operators.append(picked_template.template)
-    else:
-        picked_template = random.choice(placeholder_templates)
+    if picked_template is None:
+        # NOTE(kilian): Pick any placeholder template that wasn't used already
+        used_placeholder_templates = used_templates.get(placeholder_identifier, [])
+        remaining_placeholder_templates = [template for template in placeholder_templates if template not in used_placeholder_templates]
+        # TODO(kilian): Possibly an issue in the future because none is also considered as an operator here?
+        if no_interaction_when_operator_used and len(used_templates.get("OPERATION", [])) > 0:
+            # NOTE(kilian): Remove any templates that contain interaction placeholders
+            remaining_placeholder_templates = [template for template in placeholder_templates if "INTERACTION" not in template.placeholders]
+        if len(remaining_placeholder_templates) == 0:
+            return f"[ERROR: Every template of placeholder {placeholder_identifier} was already used]"
+        picked_template = random.choice(remaining_placeholder_templates)
+
+    if placeholder_identifier not in used_templates:
+        used_templates[placeholder_identifier] = []
+    used_templates[placeholder_identifier].append(picked_template)
+
     return picked_template
 
 def template_to_string_random_recursive(generator: TemplateGenerator, template: PlaceholderTemplate) -> str:
@@ -107,7 +120,7 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
         if token.is_placeholder:
             if generator.print_tree:
                 print(f"{tabs_string}-> [{token_placeholder_count}] {token.string}")
-            replacement = random_placeholder_template_or_error(generator.rules, token.string, generator.two_random_steps, generator.used_operators)
+            replacement = random_placeholder_template_or_error(generator.rules, token.string, generator.two_random_steps, generator.used_templates)
             if isinstance(replacement, PlaceholderTemplate):
                 generator.depth += 1
                 replacement = template_to_string_random_recursive(generator, replacement)
@@ -119,7 +132,7 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
     return result
 
 def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random_steps: bool=False, print_tree: bool=False) -> str:
-    generator = TemplateGenerator(rules, depth=0, used_operators=[], two_random_steps=two_random_steps, print_tree=print_tree)
+    generator = TemplateGenerator(rules, depth=0, used_templates={}, two_random_steps=two_random_steps, print_tree=print_tree)
     string = template_to_string_random_recursive(generator, starting_template)
     return string
 
@@ -417,25 +430,28 @@ def rule_to_prolog(root: RuleNode):
         for call in anded_calls:
             # NOTE(kilian): Combine arguments in correct order according to rules.pl
             argument_parts = []
+            function_name = call.function_name
             if call.quantity:
                 argument_parts.append(", ".join(call.quantity))
             if call.interaction:
                 argument_parts.append(", ".join(call.interaction))
             if call.interaction_name:
                 argument_parts.append(call.interaction_name)
+                if call.interaction_name == "grounded":
+                    function_name = function_name.removesuffix("_interaction")
             if call.number:
                 argument_parts.append(", ".join(call.number))
             argument_parts.append("Structure")
-
-            call_strings.append(f"{call.function_name}({', '.join(argument_parts)})")
+            
+            call_strings.append(f"{function_name}({', '.join(argument_parts)})")
 
         if len(call_strings) == 1:
             anded_call_strings.append(call_strings[0])
         else:
             anded_call_strings.append(f"and([{', '.join(call_strings)}])")
 
-    for orx in anded_call_strings:
-        print(orx)
+    #for orx in anded_call_strings:
+    #    print(orx)
     ored_call_string = f"or([{', '.join(anded_call_strings)}])" if len(anded_call_strings) != 1 else anded_call_strings[0]
     return f"generate_valid_structure([{ored_call_string}], Structure)"
 
@@ -447,10 +463,10 @@ def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderT
 
 if __name__ == "__main__":
     # TODO(kilian):
-    # 1 no interaction after and or or
-    # 2 remove used attributes from list of choices
+    # ~~1 no interaction after and or or~~
+    # ~~2 remove used attributes from list of choices~~
     # 3 check valid orientations for shapes (pyramid can not be upside_down, etc.)
-    # 4 grounded as interaction is not handled right (wrong prolog query format)
+    # ~~ 4 grounded as interaction is not handled right (wrong prolog query format) ~~
 
     prolog = Prolog()
     rule_path = os.path.join(os.path.dirname(__file__), 'rules.pl')
@@ -459,21 +475,25 @@ if __name__ == "__main__":
     rules = load_json_rules('rules/zendo_rules.json')
     starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
 
+    
     # Execute the random queries
     results = []
-    for _ in range(10):
+    for _ in range(1):
         rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=False)
+        #rule = "A structure must contain an even number of block pieces grounded."
+        print(rule)
         query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=False)
-        prolog_query = prolog.query(query)
-        for i, szene in enumerate(prolog_query):
-            structure = szene["Structure"]
-            results.append([rule, query, structure])
+        #prolog_query = prolog.query(query)
+        #for i, szene in enumerate(prolog_query):
+        #    structure = szene["Structure"]
+        #    results.append([rule, query, structure])
         print(query)
-
+    '''
     file_name = "rules/rules_output.txt"
     with open(file_name, "w") as file:
         for rule, query, structure in results:
             file.write(str(rule) + "\n" + str(structure) + "\n\n")
     print("Done: saved to " + file_name)
+    '''
 
 

@@ -1,30 +1,30 @@
-A structure must contain more upright pieces than yellow pieces.
-['item(3, red, pyramid, upright, touching(1))', 'item(2, red, block, vertical, touching(1))', 'item(1, blue, wedge, upright, grounded)', 'item(0, blue, block, upside_down, touching(2))']
+A structure must contain more wedge pieces than pyramid pieces.
+['item(3, yellow, wedge, flat, pointing(1))', 'item(2, red, block, upside_down, on_top_of(1))', 'item(1, blue, wedge, cheesecake, grounded)', 'item(0, red, block, flat, touching(3))']
 
-A structure must contain exactly 1 wedge pieces or at least 2 upside_down pieces .
-['item(2, blue, block, vertical, grounded)', 'item(1, blue, block, upside_down, grounded)', 'item(0, yellow, wedge, cheesecake, touching(1))']
+A structure must contain exactly 1 flat block pieces.
+['item(0, yellow, block, flat, grounded)']
 
-A structure must contain exactly 1 upright pieces or exactly 2 yellow pieces.
-['item(5, yellow, block, upright, on_top_of(4))', 'item(4, blue, block, flat, grounded)', 'item(3, yellow, pyramid, upright, touching(4))', 'item(2, blue, block, upright, touching(1))', 'item(1, red, wedge, cheesecake, grounded)', 'item(0, red, wedge, vertical, grounded)']
+A structure must contain more upright pieces than block pieces.
+['item(0, blue, pyramid, upright, grounded)']
 
-A structure must contain an odd number of total pieces.
-['item(0, blue, block, flat, grounded)']
+A structure must contain at least 0 red upside_down pieces.
+['item(1, yellow, block, flat, grounded)', 'item(0, blue, wedge, cheesecake, pointing(1))']
 
-A structure must contain either 2 or 2 of total pieces.
-['item(1, red, pyramid, vertical, grounded)', 'item(0, blue, wedge, flat, touching(1))']
+A structure must contain at least 0 block pieces touching a flat piece.
+['item(4, blue, wedge, flat, grounded)', 'item(3, blue, block, upright, grounded)', 'item(2, blue, pyramid, upright, grounded)', 'item(1, blue, pyramid, upright, grounded)', 'item(0, blue, wedge, upright, grounded)']
 
-A structure must contain more vertical pieces than pyramid pieces.
-['item(1, yellow, block, vertical, on_top_of(0))', 'item(0, blue, block, upright, grounded)']
+A structure must contain an even number of total pieces.
+['item(3, red, wedge, flat, grounded)', 'item(2, red, pyramid, flat, touching(3))', 'item(1, blue, pyramid, flat, grounded)', 'item(0, blue, pyramid, flat, on_top_of(2))']
 
-A structure must contain exactly 0 yellow upright pieces.
-['item(3, yellow, wedge, flat, touching(0))', 'item(2, red, wedge, vertical, grounded)', 'item(1, yellow, block, upside_down, touching(2))', 'item(0, blue, pyramid, flat, pointing(2))']
+A structure must contain at least 1 upside_down pieces.
+['item(3, blue, pyramid, upright, touching(2))', 'item(2, blue, block, flat, touching(3))', 'item(1, blue, pyramid, vertical, on_top_of(0))', 'item(0, red, block, upside_down, on_top_of(2))']
 
-A structure must contain an even number of wedge pieces on top of another block piece.
-['item(5, blue, block, upright, grounded)', 'item(4, yellow, block, upright, grounded)', 'item(3, blue, wedge, flat, on_top_of(5))', 'item(2, blue, block, upright, touching(5))', 'item(1, red, pyramid, upright, grounded)', 'item(0, blue, wedge, flat, on_top_of(4))']
+A structure must contain an even number of block pieces.
+['item(3, blue, pyramid, vertical, grounded)', 'item(2, blue, block, vertical, grounded)', 'item(1, red, wedge, cheesecake, on_top_of(2))', 'item(0, yellow, block, upright, grounded)']
 
-A structure must contain at least 1 pyramid pieces touching a pyramid piece.
-['item(5, yellow, block, vertical, on_top_of(2))', 'item(4, yellow, pyramid, flat, touching(3))', 'item(3, red, wedge, cheesecake, grounded)', 'item(2, red, pyramid, vertical, touching(1))', 'item(1, red, pyramid, upright, grounded)', 'item(0, red, wedge, upright, grounded)']
+A structure must contain at least 0 block pieces touching a yellow piece.
+['item(1, blue, wedge, vertical, touching(0))', 'item(0, blue, wedge, vertical, touching(1))']
 
-A structure must contain an even number of flat pieces.
-['item(4, yellow, wedge, vertical, grounded)', 'item(3, red, pyramid, flat, touching(1))', 'item(2, blue, wedge, cheesecake, grounded)', 'item(1, blue, pyramid, upright, grounded)', 'item(0, red, block, flat, grounded)']
+A structure must contain at least 3 flat pieces and an even number of blue pieces.
+['item(2, red, pyramid, flat, touching(0))', 'item(1, blue, wedge, flat, on_top_of(2))', 'item(0, blue, block, flat, touching(2))']
 
