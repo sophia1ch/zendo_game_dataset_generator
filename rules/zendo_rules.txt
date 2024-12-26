@@ -76,6 +76,7 @@ flat
 vertical
 upright
 upside-down
+cheesecake
 weird
 
 COLOR:
