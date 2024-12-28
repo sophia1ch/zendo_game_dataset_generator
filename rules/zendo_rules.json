@@ -109,28 +109,35 @@
       "prolog": ["on_top_of"]
     }
   ],
-  "ATTRIBUTES": {
-    "ORIENTATION": [
-      "flat",
-      "vertical",
-      "upright",
-      "upside_down"
-    ],
-    "COLOR": [
-      "blue",
-      "yellow",
-      "red"
-    ],
-    "SHAPE": [
-      "pyramid",
-      "wedge",
-      "block"
-    ],
-    "NUMBER": [
-      0,
-      1,
-      2,
-      3
-    ]
-  }
+  "ORIENTATION": [
+    "flat",
+    "vertical",
+    "upright",
+    "upside_down"
+  ],
+  "COLOR": [
+    "blue",
+    "yellow",
+    "red"
+  ],
+  "SHAPE": [
+    {
+      "template": "pyramid",
+      "orientations": ["flat", "vertical", "upright", "weird"]
+    },
+    {
+      "template": "wedge",
+      "orientations": ["flat", "vertical", "upright", "cheesecake", "weird"]
+    },
+    {
+      "template": "block",
+      "orientations": ["flat", "vertical", "upright", "upside-down", "weird"]
+    }
+  ],
+  "NUMBER": [
+    0,
+    1,
+    2,
+    3
+  ]
 }
