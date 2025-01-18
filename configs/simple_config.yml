@@ -19,7 +19,7 @@ anchor_position: [0, 0, 0] # Center position of object placement radius
 random_face_choice: True # Choose random faces when resolving relations
 random_object_rotation: False # Randomly rotates the objects. WARNING: can lead to unresolvable scenes
 placement_attempts: 50 # Number of attempts to try to place an object before regenerating the whole scene
-generation_attempts: 20 # Number of attempts to try to generate the whole scene before determining the scene unsolvable
+generation_attempts: 100 # Number of attempts to try to generate the whole scene before determining the scene unsolvable
 collision_margin: 0.0 # Margin to extend the bounding boxes of objects during the collision check to ensure proper separation when placing objects
 touching_margin: 0.01 # Margin for placing objects with the touching interaction
 ray_interpolation: 10 # Interpolation steps for casting the rays, defines the amount of interpolated rays between the actual points defined by the vertices of the object

@@ -1,13 +1,10 @@
 import ast
 import re
 from collections import defaultdict, deque
-import zendo_objects
-import utils
 from math import cos, sin, pi
+
+import zendo_objects
 from structure import *
-import bpy
-import random
-from mathutils import Vector
 
 
 def check_pointing(observer: ZendoObject):
@@ -169,7 +166,7 @@ def generate_creation(args, instruction, collection):
         obj.rotate_z(d)
     return obj
 
-def generate_structure(args, prolog_string: str, collection, attempt: int = 0):
+def generate_structure(args, prolog_string: str, collection, attempt: int = 1):
 
     if attempt > args.generation_attempts:
         raise Exception(f"Exceeded generation attempts, unable to generate a scene for rule:\n {prolog_string}")
@@ -296,8 +293,11 @@ def generate_structure(args, prolog_string: str, collection, attempt: int = 0):
         else:
             if len(pointing_objects) != 0:
                 integrity = False
-    print("Integrity:", integrity)
 
+    if check_scene_occlusion():
+        integrity = False
+
+    print("Integrity:", integrity)
 
     if not integrity:
         for obj in collection.objects:
@@ -306,3 +306,39 @@ def generate_structure(args, prolog_string: str, collection, attempt: int = 0):
 
         generate_structure(args, prolog_string, collection, attempt=attempt + 1)
 
+def check_scene_occlusion(threshold=0.15):
+    cam = bpy.data.objects["Camera.001"]
+    camera_loc = cam.location
+    targets = [
+        o for o in bpy.data.objects
+        if o.type == 'MESH' and any(k in o.name for k in ["Pyramid", "Wedge", "Block"])
+    ]
+
+    for obj in targets:
+        vertices = obj.data.vertices
+        if not vertices:
+            continue
+
+        mw = obj.matrix_world
+        total = len(vertices)
+        blocked = 0
+
+        for v in vertices:
+            wv = mw @ v.co
+            dir_vec = wv - camera_loc
+            hit, hit_loc, _, _, hit_obj, _ = bpy.context.scene.ray_cast(
+                bpy.context.view_layer.depsgraph, camera_loc, dir_vec
+            )
+
+            if (
+                hit
+                and hit_obj != obj
+                and "Ground" not in hit_obj.name
+                and (hit_loc - camera_loc).length < dir_vec.length - 1e-5
+            ):
+                blocked += 1
+
+        print(f"Actual threshold {obj.name}: {blocked / total:.2f}")
+        if blocked / total >= threshold:
+            return True
+    return False
