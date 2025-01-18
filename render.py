@@ -5,10 +5,16 @@ import os, sys, argparse
 import json
 from argparse import Namespace
 import yaml
+from structure import *
 import numpy as np
 import random
-from blender_objects import blender_obj, check_collision, set_random_position, place_ontop
+
+import zendo_objects
+
+
 import utils
+from zendo_objects import *
+from generate import generate_structure
 
 
 def main(args):
@@ -22,71 +28,14 @@ def main(args):
     #######################################################
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
-    object_shapes, object_colors, object_sizes = utils.read_properties_json(args.properties_json)
-    object_colors_no_bw = object_colors.copy()
-    del object_colors_no_bw["white"]
-    del object_colors_no_bw["black"]
-    object_colors_no_gs = object_colors_no_bw.copy()
-    del object_colors_no_gs["gray"]
-    #object_shape_values = list(object_shapes.values())
-    object_size_values = list(object_sizes.values())
-    #object_color_values = list(object_colors.values())
-    object_color_values_no_bw = list(object_colors_no_bw.values())
-    object_color_values_no_gs = list(object_colors_no_gs.values())
 
-    list_of_objects = []
-    def add(obj):
-        list_of_objects.append(obj)
-        return obj
-    def create(name: str, scale: str|float, color: str|list[float]):
-        scale = scale if isinstance(scale, float) else object_sizes[scale]
-        color = color if isinstance(color, list) else object_colors[color]
-        return add(blender_obj(args, name=object_shapes[name], scale=scale, color=color))
+    example_string = "['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, block, flat, touching(2))']"
 
-    disc = create("disc", "medium", "yellow")
-    disc.set_pose(0.0, 0.0, 0.0, "side")
+    example_string = "['item(5, red, block, vertical, pointing(2))', 'item(4, yellow, block, flat, pointing(3))', 'item(3, yellow, pyramid, vertical, pointing(0))', 'item(2, blue, wedge, vertical, on_top_of(4))', 'item(1, red, pyramid, upright, touching(2))', 'item(0, red, block, flat, on_top_of(2))']"
+    collection = bpy.data.collections.new("Structure")
+    bpy.context.scene.collection.children.link(collection)
+    generate_structure(args, example_string, collection)
 
-    # Pyramid on pyramid
-    bottom = create("pyramid", 1.0, "yellow")
-    bottom.set_pose(-4.0, -1.0, 40.0, type="upright")
-    mid = create("pyramid", 0.5, "green")
-    mid.set_ontop(bottom)
-    top = create("pyramid", 0.3, "red")
-    top.set_ontop(mid)
-    big_top = create("pyramid", 1.4, "white")
-    big_top.set_ontop(top)
-
-    # Disc on disc
-    prev_disc = None
-    for i in range(6):
-        new_disc = create("disc", (1.0 - i/10.0), random.choice(object_color_values_no_gs))
-        if prev_disc is None:
-            new_disc.set_pose(2.0, 4.0, 40.0, type="upright")
-        else:
-            new_disc.set_ontop(prev_disc)
-        prev_disc = new_disc
-    top_pyr = create("pyramid", 0.2, "white")
-    top_pyr.set_ontop(prev_disc)
-
-    # Pyramid on disc
-    bot_disc = create("disc", "medium", "black")
-    bot_disc.set_pose(2.0, 0.0, 0.0, "upright")
-
-    top_pyr = create("pyramid", 0.5, "white")
-    top_pyr.set_ontop(bot_disc)
-
-    # Disc on pyramid
-    bot_pyr = create("pyramid", "medium", "blue")
-    bot_pyr.set_pose(0.0, -3.0, 0.0, "upright")
-
-    top_disc = create("disc", 0.5, "blue")
-    top_disc.set_ontop(bot_pyr)
-    
-    for _ in range(10):
-        pyr_scale = random.choice(object_size_values)
-        pyr_color = random.choice(object_color_values_no_bw)
-        pyr = create("pyramid", pyr_scale, pyr_color)
-        set_random_position(pyr, list_of_objects)
 
     #######################################################
     # Initialize render settings
