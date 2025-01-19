@@ -2,6 +2,7 @@ import sys, os, random, json, re
 from dataclasses import dataclass, field
 from pyswip import Prolog
 
+
 @dataclass
 class PlaceholderTemplate:
     @dataclass(frozen=True)
@@ -15,12 +16,14 @@ class PlaceholderTemplate:
     prolog: list[str]
     orientations: list[str]
 
+
 @dataclass
 class Placeholder:
     categories: dict[str, list[PlaceholderTemplate]]
     templates_of_start_match: dict[str, list[PlaceholderTemplate]]
     all_templates: list[PlaceholderTemplate]
     start_pattern: re.Pattern[str]
+
 
 @dataclass
 class Rules:
@@ -31,16 +34,19 @@ class Rules:
     templates_of_start_match: dict[str, list[PlaceholderTemplate]]
     templates_start_pattern: re.Pattern[str]
 
+
 @dataclass
 class RuleNode:
     template: PlaceholderTemplate
     children: list["RuleNode"]
+
 
 @dataclass
 class RuleParser:
     rules: Rules
     depth: int
     print_tree: bool
+
 
 @dataclass
 class TemplateGenerator:
@@ -49,6 +55,7 @@ class TemplateGenerator:
     used_templates: dict[str, list[PlaceholderTemplate]]
     two_random_steps: bool = False
     print_tree: bool = False
+
 
 def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: str, two_steps: bool=False, used_templates: dict[str, list[PlaceholderTemplate]]|None = None, allowed_orientations: list[PlaceholderTemplate]|None = None, no_interaction_when_operator_used: bool = True) -> PlaceholderTemplate|str:
     # NOTE(kilian): if two_steps is true, first a random placeholder category (like "at least" for QUANTITY) is drawn randomly,
@@ -112,6 +119,7 @@ def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: s
 
     return picked_template
 
+
 def template_to_string_random_recursive(generator: TemplateGenerator, template: PlaceholderTemplate) -> str:
     if generator.print_tree:
         tabs_string = '\t'*generator.depth
@@ -169,10 +177,12 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
             result += token.string
     return result
 
+
 def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random_steps: bool=False, print_tree: bool=False) -> str:
     generator = TemplateGenerator(rules, depth=0, used_templates={}, two_random_steps=two_random_steps, print_tree=print_tree)
     string = template_to_string_random_recursive(generator, starting_template)
     return string
+
 
 def make_placeholder_template(identifier: str, template_text: str, placeholders_list: list[str], prolog_list: list[str], orientations: list[str]) -> PlaceholderTemplate:
     tokens: list[PlaceholderTemplate.Token] = []
@@ -196,6 +206,7 @@ def make_placeholder_template(identifier: str, template_text: str, placeholders_
     else:
         tokens.append(PlaceholderTemplate.Token(template_text, False))
     return PlaceholderTemplate(identifier, template_text, placeholders_list, tokens, prolog_list, orientations)
+
 
 def load_json_rules(filename) -> Rules|None:
     with open(filename) as f:
@@ -282,6 +293,7 @@ def load_json_rules(filename) -> Rules|None:
         return rules
     return None
 
+
 def print_rules(rules: Rules):
     for placeholder_identifier, placeholder in rules.placeholders.items():
         print(placeholder_identifier)
@@ -294,6 +306,7 @@ def print_rules(rules: Rules):
             for template in placeholder_templates:
                 print(f"{tabs_str}{template.template}")
 
+
 def template_from_text(rules: Rules, text: str):
     used_placeholders = []
     template = (text + ".")[:-1]
@@ -302,6 +315,7 @@ def template_from_text(rules: Rules, text: str):
             template = template.replace(placeholder_identifier, f"{{{placeholder_identifier}}}")
             used_placeholders.append(placeholder_identifier)
     return make_placeholder_template("CUSTOM", template, used_placeholders, [], [])
+
 
 # NOTE(kilian): Returns a rule node or a reason why the template does not match.
 def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTemplate) -> tuple[RuleNode, str]|str:
@@ -312,7 +326,7 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
             tabs_string = '\t'*parser.depth
             print(f"{tabs_string}[{i}] '{token.string}': '{remaining_rule}'")
         if token.is_placeholder:
-            token_placeholder = rules.placeholders[token.string]
+            token_placeholder = parser.rules.placeholders[token.string]
             
             # NOTE(kilian): Use longest match (otherwise it will just match none "" anywhere possible)
             possible_templates: list[PlaceholderTemplate] = []
@@ -350,6 +364,7 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
             remaining_rule = remaining_rule[m.end(0):]
     return (RuleNode(template, nodes), remaining_rule)
 
+
 def parse_rule_text(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print=False) -> RuleNode|None:
     parser = RuleParser(rules, depth=0, print_tree=debug_print)
     parse_match = parse_rule_text_match(parser, rule, starting_template)
@@ -357,6 +372,7 @@ def parse_rule_text(rules: Rules, rule: str, starting_template: PlaceholderTempl
         return None
     root, remaining_rule = parse_match
     return root
+
 
 def print_rule_nodes(root: RuleNode):
     nodes = [(0, root)]
@@ -371,6 +387,7 @@ def print_rule_nodes(root: RuleNode):
             i += 1
         nodes = new_nodes
         depth += 1
+
 
 def rule_to_prolog(root: RuleNode):
     @dataclass
@@ -441,42 +458,35 @@ def rule_to_prolog(root: RuleNode):
     ored_call_string = f"or([{', '.join(anded_call_strings)}])" if len(anded_call_strings) != 1 else anded_call_strings[0]
     return f"generate_valid_structure([{ored_call_string}], Structure)"
 
+
 def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print_parse=False, debug_print_nodes=False) -> str:
     root = parse_rule_text(rules, rule, starting_template, debug_print=debug_print_parse)
     if debug_print_nodes:
         print_rule_nodes(root)
     return rule_to_prolog(root)
 
-if __name__ == "__main__":
-    # TODO(kilian):
-    # What to do about this one? vertical is not referring to wedge here but currently the wedge orientations still restrict this orientation placeholder
-    # "A structure must contain an odd number of flat pieces and more vertical pieces than wedge pieces."
 
-    prolog = Prolog()
-    rule_path = os.path.join(os.path.dirname(__file__), 'rules.pl')
-    prolog.consult(rule_path)
-
-    rules = load_json_rules('rules/zendo_rules.json')
+def generate_rule(rules_json_file = 'rules/zendo_rules.json'):
+    rules = load_json_rules(rules_json_file)
     starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
-    
+
+    # Generate random rule and parse it into a prolog query
+    rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=False)
+    query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=False)
+    return rule, query
+
+
+def generate_prolog_structure(num_examples, query, prolog_file = 'rules/rules.pl'):
+    prolog = Prolog()
+    prolog.consult(prolog_file)
+
     # Execute the random queries
     results = []
-    for _ in range(1):
-        rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=False)
-        #rule = "A structure must contain an even number of block pieces grounded."
-        print(rule)
-        query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=False)
-        #prolog_query = prolog.query(query)
-        #for i, szene in enumerate(prolog_query):
-        #    structure = szene["Structure"]
-        #    results.append([rule, query, structure])
-        print(query)
-    '''
-    file_name = "rules/rules_output.txt"
-    with open(file_name, "w") as file:
-        for rule, query, structure in results:
-            file.write(str(rule) + "\n" + str(structure) + "\n\n")
-    print("Done: saved to " + file_name)
-    '''
+    # Generate num_example structure arrays per rule
+    for _ in range(num_examples):
+        prolog_query = prolog.query(query)
+        for i, szene in enumerate(prolog_query):
+            structure = szene["Structure"]
+            results.append(structure)
 
-
+    return results

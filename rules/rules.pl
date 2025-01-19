@@ -122,7 +122,7 @@ interaction_constraint_check(Structure) :-
     %% On_top_of %%
     % Ensure all on_top_of attributes have the right orientation and check if the stacking is valid
     forall(
-        member(item(SourceId,_,_,SourceOrientation,on_top_of(TargetId)), Structure),
+        member(item(SourceId,_,SourceShape,SourceOrientation,on_top_of(TargetId)), Structure),
         (
             member(item(TargetId, _, TargetShape, TargetOrientation, TargetInteraction), Structure),
             (
@@ -130,23 +130,23 @@ interaction_constraint_check(Structure) :-
                 (TargetInteraction = grounded,
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)));
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)));
                 % Pointing cases
                 (TargetInteraction = pointing(SourceId),
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)));
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)));
                 % Touching cases
                 (TargetInteraction = touching(_),
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)));
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)));
                 % On top of another item
                 (TargetInteraction = on_top_of(AnotherId),
                  AnotherId \= SourceId,
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, TargetOrientation = SourceOrientation)))
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)))
             )
         )
     ),

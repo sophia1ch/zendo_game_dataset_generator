@@ -8,8 +8,9 @@ import yaml
 from structure import *
 import numpy as np
 import random
-
+from rules.rules import generate_rule, generate_prolog_structure
 import zendo_objects
+import time
 
 
 import utils
@@ -17,26 +18,7 @@ from zendo_objects import *
 from generate import generate_structure
 
 
-def main(args):
-    # add directory to sys.path
-    script_dir = os.path.dirname(bpy.data.filepath)
-    if script_dir not in sys.path:
-        sys.path.append(script_dir)
-
-    #######################################################
-    # Main
-    #######################################################
-
-    bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
-
-    example_string = "['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, block, flat, touching(2))']"
-
-    # example_string = "['item(5, red, block, vertical, pointing(2))', 'item(4, yellow, block, flat, pointing(3))', 'item(3, yellow, pyramid, vertical, pointing(0))', 'item(2, blue, wedge, vertical, on_top_of(4))', 'item(1, red, pyramid, upright, touching(2))', 'item(0, red, block, flat, on_top_of(2))']"
-    collection = bpy.data.collections.new("Structure")
-    bpy.context.scene.collection.children.link(collection)
-    generate_structure(args, example_string, collection)
-
-
+def render(args, output_path, name):
     #######################################################
     # Initialize render settings
     #######################################################
@@ -92,7 +74,7 @@ def main(args):
 
     # Set rendering properties
     bpy.context.scene.render.engine = 'CYCLES'
-    bpy.context.scene.render.filepath = os.path.join(script_dir, args.output_dir, args.output_image_file)
+    bpy.context.scene.render.filepath = os.path.join(script_dir, args.output_dir, output_path, name)
     bpy.context.scene.render.image_settings.file_format = 'PNG'
     bpy.context.scene.cycles.samples = int(args.render_num_samples)
     bpy.context.scene.render.resolution_x = args.width
@@ -105,7 +87,50 @@ def main(args):
     bpy.ops.render.render(write_still=True)
 
     if args.save_blendfile:
-        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.output_dir, "test.blend"))
+        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.output_dir, output_path, f"{name}.blend"))
+
+
+def main(args):
+    #######################################################
+    # Main
+    #######################################################
+    start_time = time.time()
+    script_dir = os.path.dirname(bpy.data.filepath)
+    if script_dir not in sys.path:
+        sys.path.append(script_dir)
+
+    bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
+
+    prolog_file = args.rules_prolog_file
+    rules_json_file = args.rules_json_file
+    num_rules = args.num_rules
+    num_examples = args.num_examples
+
+    for r in range(num_rules):
+        rule, query = generate_rule(rules_json_file)
+        scenes = generate_prolog_structure(num_examples, query, prolog_file)
+
+        collection = bpy.data.collections.new("Structure")
+        bpy.context.scene.collection.children.link(collection)
+
+        i = 0
+        while i < num_examples:
+            # scenes = ["['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, block, flat, touching(2))']"]
+            structure = scenes[i]
+            scene_name = f"{r}_{i}"
+            try:
+                generate_structure(args, structure, collection)
+                render(args, str(r), scene_name)
+
+                file_path = os.path.join(args.output_dir, str(r), f"{scene_name}.txt")
+                with open(file_path, "w") as file:
+                    file.write(str(rule) + "\n" + str(query) + "\n" + str(structure))
+                i += 1
+
+            except Exception as e:
+                scenes[i] = generate_prolog_structure(1, query, prolog_file)[0]
+                print(e)
+    print(f"Time to complete: {time.time() - start_time}")
 
 
 if __name__ == '__main__':

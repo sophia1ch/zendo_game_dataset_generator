@@ -2,7 +2,6 @@ base_scene_blendfile: 'data/base_scene.blend' # Base blender file on which all s
 properties_json: 'data/properties.json' # JSON file defining objects, materials, sizes, and colors.
 shape_dir: 'data/shapes' # Directory where .blend files for object models are stored
 output_dir: 'output' # The directory where output images will be stored. It will be created if it does not exist.
-output_image_file: 'test.png' # The file name with which the output images will be stored.
 save_blendfile: 1 # each generated image to be stored in the directory specified by the --output_blend_dir flag. These files are not saved by default because they take up ~5-10MB each.
 width: 640 # The width (in pixels) for the rendered images
 height: 480 # The height (in pixels) for the rendered images
@@ -12,14 +11,21 @@ render_max_bounces: 8 # The maximum number of bounces to use for rendering.
 render_tile_size: 256 # The tile size to use for rendering.
 stacking_offset: 0.1 # Offset for stacking objects ontop of each other
 
+# Config for Rule Generation
+num_rules: 1 # How many random rules should be generated
+num_examples: 5 # How many random scenes should be generated per rule
+generate_negative_rules: False
+rules_prolog_file: 'rules/rules.pl' # The prolog file which creates the structure array from a parsed string
+rules_json_file: 'rules/zendo_rules.json'
 
 # Config for scene generation
-placement_radius: 5 # Radius for placement of  all objects
+placement_radius: 10 # Radius for placement of  all objects
 anchor_position: [0, 0, 0] # Center position of object placement radius
 random_face_choice: True # Choose random faces when resolving relations
 random_object_rotation: False # Randomly rotates the objects. WARNING: can lead to unresolvable scenes
-placement_attempts: 50 # Number of attempts to try to place an object before regenerating the whole scene
-generation_attempts: 100 # Number of attempts to try to generate the whole scene before determining the scene unsolvable
+placement_attempts: 10 # Number of attempts to try to place an object before regenerating the whole scene
+generation_attempts: 10 # Number of attempts to try to generate the whole scene before determining the scene unsolvable
 collision_margin: 0.0 # Margin to extend the bounding boxes of objects during the collision check to ensure proper separation when placing objects
 touching_margin: 0.01 # Margin for placing objects with the touching interaction
 ray_interpolation: 10 # Interpolation steps for casting the rays, defines the amount of interpolated rays between the actual points defined by the vertices of the object
+los_threshold: 0.20 # Threshold for line of sight

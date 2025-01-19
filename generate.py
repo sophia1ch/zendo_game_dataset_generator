@@ -166,18 +166,19 @@ def generate_creation(args, instruction, collection):
         obj.rotate_z(d)
     return obj
 
-def generate_structure(args, prolog_string: str, collection, attempt: int = 1):
+def generate_structure(args, items: list[str], collection, attempt: int = 1):
 
     if attempt > args.generation_attempts:
-        raise Exception(f"Exceeded generation attempts, unable to generate a scene for rule:\n {prolog_string}")
+        raise Exception(f"Exceeded generation attempts, unable to generate a scene for rule:\n {items}")
 
     placement_radius = args.placement_radius
     anchor_position = args.anchor_position
     collision_margin = args.collision_margin
     touching_margin = args.touching_margin
     placement_attempts = args.placement_attempts
+    los_threshold = args.los_threshold
 
-    items = ast.literal_eval(prolog_string)
+    #items = prolog_string
     instructions = []
     for item in items:
         match = re.match(r"item\((\d+),\s*(\w+),\s*(\w+),\s*(\w+),\s*(.+)\)", item)
@@ -294,7 +295,7 @@ def generate_structure(args, prolog_string: str, collection, attempt: int = 1):
             if len(pointing_objects) != 0:
                 integrity = False
 
-    if check_scene_occlusion():
+    if check_scene_occlusion(los_threshold):
         integrity = False
 
     print("Integrity:", integrity)
@@ -304,9 +305,10 @@ def generate_structure(args, prolog_string: str, collection, attempt: int = 1):
             bpy.data.objects.remove(obj, do_unlink=True)
         ZendoObject.instances.clear()
 
-        generate_structure(args, prolog_string, collection, attempt=attempt + 1)
+        generate_structure(args, items, collection, attempt=attempt + 1)
 
-def check_scene_occlusion(threshold=0.15):
+
+def check_scene_occlusion(threshold):
     cam = bpy.data.objects["Camera.001"]
     camera_loc = cam.location
     targets = [
