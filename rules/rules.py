@@ -456,7 +456,7 @@ def rule_to_prolog(root: RuleNode):
     #for orx in anded_call_strings:
     #    print(orx)
     ored_call_string = f"or([{', '.join(anded_call_strings)}])" if len(anded_call_strings) != 1 else anded_call_strings[0]
-    return f"generate_valid_structure([{ored_call_string}], Structure)"
+    return f"generate_valid_structure([{ored_call_string}], Structure)", f"generate_invalid_structure([{ored_call_string}], Structure)"
 
 
 def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print_parse=False, debug_print_nodes=False) -> str:
@@ -472,8 +472,8 @@ def generate_rule(rules_json_file = 'rules/zendo_rules.json'):
 
     # Generate random rule and parse it into a prolog query
     rule = random_rule(rules, starting_template, two_random_steps=False, print_tree=False)
-    query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=False)
-    return rule, query
+    query, n_query = rule_text_to_prolog(rules, rule, starting_template, debug_print_parse=False, debug_print_nodes=False)
+    return rule, query, n_query
 
 
 def generate_prolog_structure(num_examples, query, prolog_file = 'rules/rules.pl'):

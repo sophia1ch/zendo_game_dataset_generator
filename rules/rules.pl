@@ -34,6 +34,13 @@ generate_valid_structure(Checks, Structure) :-
     interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
 
+% Generate repeatedly until a structure doesn´t fulfills the checks
+generate_invalid_structure(Checks, Structure) :-
+    repeat,
+    generate_structure(Structure),
+    interaction_constraint_check(Structure),
+    (not(and(Checks)) -> !; fail).
+
 generate_structure(Structure) :-
     max_items(Max),
     random_between(1, Max, N),

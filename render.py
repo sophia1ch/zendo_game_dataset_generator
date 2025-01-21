@@ -87,7 +87,35 @@ def render(args, output_path, name):
     bpy.ops.render.render(write_still=True)
 
     if args.save_blendfile:
+        bpy.context.preferences.filepaths.save_version = 0
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.output_dir, output_path, f"{name}.blend"))
+
+
+def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, negative=False):
+    # Generate structure array from prolog with given query
+    scenes = generate_prolog_structure(num_examples, query, args.rules_prolog_file)
+
+    i = 0
+    while i < num_examples:
+        structure = scenes[i]
+        scene_name = f"{rule_idx}_{i}"
+        if negative:
+            scene_name = f"{rule_idx}_{i}_n"
+        try:
+            # Now generate it in blender
+            generate_structure(args, structure, collection)
+            render(args, str(rule_idx), scene_name)
+
+            # Save GT information
+            file_path = os.path.join(args.output_dir, str(rule_idx), f"{scene_name}.txt")
+            with open(file_path, "w") as file:
+                file.write(str(rule) + "\n" + str(query) + "\n" + str(structure))
+            i += 1
+
+        except Exception as e:
+            # If not possible to generate in blender, generate a new structure with prolog and try again
+            scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
+            print(e)
 
 
 def main(args):
@@ -101,35 +129,24 @@ def main(args):
 
     bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
 
-    prolog_file = args.rules_prolog_file
     rules_json_file = args.rules_json_file
     num_rules = args.num_rules
     num_examples = args.num_examples
+    num_invalid_examples = args.num_invalid_examples
+    generate_invalid_examples = args.generate_invalid_examples
 
     for r in range(num_rules):
-        rule, query = generate_rule(rules_json_file)
-        scenes = generate_prolog_structure(num_examples, query, prolog_file)
+        # get rule in string form and query, negative query in prolog form
+        rule, query, n_query = generate_rule(rules_json_file)
 
         collection = bpy.data.collections.new("Structure")
         bpy.context.scene.collection.children.link(collection)
 
-        i = 0
-        while i < num_examples:
-            # scenes = ["['item(3, red, pyramid, upright, grounded)', 'item(2, yellow, wedge, upright, grounded)', 'item(1, blue, pyramid, flat, pointing(3))', 'item(0, red, block, flat, touching(2))']"]
-            structure = scenes[i]
-            scene_name = f"{r}_{i}"
-            try:
-                generate_structure(args, structure, collection)
-                render(args, str(r), scene_name)
+        generate_blender_examples(args, collection, num_examples, r, rule, query, False)
+        # If bool is set for generating also scenes which doesn't fulfill the rule
+        if generate_invalid_examples:
+            generate_blender_examples(args, collection, num_invalid_examples, r, rule, n_query, True)
 
-                file_path = os.path.join(args.output_dir, str(r), f"{scene_name}.txt")
-                with open(file_path, "w") as file:
-                    file.write(str(rule) + "\n" + str(query) + "\n" + str(structure))
-                i += 1
-
-            except Exception as e:
-                scenes[i] = generate_prolog_structure(1, query, prolog_file)[0]
-                print(e)
     print(f"Time to complete: {time.time() - start_time}")
 
 
