@@ -98,8 +98,16 @@ item_has_attribute(Attr, item(_,C,S,O,I)) :-
     Attr = C; Attr = S; Attr = O; (nonvar(I), I =.. [Attr|_]).
 
 item_has_two_attributes(A1, A2, Item) :-
+    A2 \= grounded,
     item_has_attribute(A1, Item),
     item_has_attribute(A2, Item).
+
+item_has_two_attributes(A1, grounded, Item) :-
+     % Check if one of the attributes is grounded, if so we have a special case
+     item_has_attribute(A1, Item),
+     (item_has_attribute(grounded, Item);
+     item_has_attribute(pointing, Item);
+     item_has_attribute(touching, Item)).
 
 count_attribute(Attr, Structure, Count) :-
     include(item_has_attribute(Attr), Structure, Filtered),
@@ -113,7 +121,7 @@ count_multiple_attributes(A1, A2, Structure, Count) :-
 has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, item(_,C,S,O,I)) :-
     item_has_attribute(QAttr, item(_,C,S,O,I)),
     decode_interaction(I, InteractionName, Target),
-    Target \= none, % Only interactions with a target are checked here
+    Target \= none, % Not really needed, because if grounded, we don`t use this case
     member(item(Target,TC,TS,TO,TI), Structure),
     item_has_attribute(IAttr, item(Target,TC,TS,TO,TI)).
 

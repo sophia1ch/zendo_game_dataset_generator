@@ -57,16 +57,18 @@ OPERATION:
 ✔ none
 
 INTERACTION:
-✔ grounded pieces (only rule, where the interaction is an attribute)
-touching a SHAPE piece
-touching a COLOR piece
-touching a ORIENTATION piece
-pointing at a SHAPE piece
-pointing at a COLOR piece
-pointing at a ORIENTATION piece
-on top of a SHAPE piece
-on top of a COLOR piece
-on top of a ORIENTATION piece
+✔ grounded pieces (only rule, where the interaction is an attribute;
+                   This is the only rule which is checked differently in prolog!
+                   Is always in combination with another attribute like Shape, Orientation or Color!)
+✔ touching a SHAPE piece
+✔ touching a COLOR piece
+✔ touching a ORIENTATION piece
+✔ pointing at a SHAPE piece
+✔ pointing at a COLOR piece
+✔ pointing at a ORIENTATION piece
+✔ on top of a SHAPE piece
+✔ on top of a COLOR piece
+✔ on top of a ORIENTATION piece
 
 
 
