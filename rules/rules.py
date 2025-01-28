@@ -5,13 +5,19 @@ from pyswip import Prolog
 
 @dataclass
 class PlaceholderTemplate:
+    """
+    A placeholder template describes a text to be inserted in the place of its placeholder_id.
+    It can itself contain placeholders, which is why it is split up into tokens.
+    """
+
     @dataclass(frozen=True)
     class Token:
         string: str
         is_placeholder: bool
-    identifier: str
+    
+    placeholder_id: str
     template: str
-    placeholders: list[str]
+    placeholders: set[str]
     tokens: list[Token]
     prolog: list[str]
     orientations: list[str]
@@ -19,6 +25,10 @@ class PlaceholderTemplate:
 
 @dataclass
 class Placeholder:
+    """
+    A placeholder is to be replaced by any of its placeholder templates stored in all_templates.
+    """
+
     categories: dict[str, list[PlaceholderTemplate]]
     templates_of_start_match: dict[str, list[PlaceholderTemplate]]
     all_templates: list[PlaceholderTemplate]
@@ -57,155 +67,39 @@ class TemplateGenerator:
     print_tree: bool = False
 
 
-def random_placeholder_template_or_error(rules: Rules, placeholder_identifier: str, two_steps: bool=False, used_templates: dict[str, list[PlaceholderTemplate]]|None = None, allowed_orientations: list[PlaceholderTemplate]|None = None, no_interaction_when_operator_used: bool = True) -> PlaceholderTemplate|str:
-    # NOTE(kilian): if two_steps is true, first a random placeholder category (like "at least" for QUANTITY) is drawn randomly,
-    # then a template of that category. Otherwise, a random template is drawn from the templates of all placeholder categories
-    # if no_interaction_when_operator_used is True, then no templates with INTERACTION placeholder will be considered if any operator was used previously
+# MARK: Exceptions
 
-    if placeholder_identifier not in rules.placeholders:
-        return f"[ERROR: Unknown placeholder {placeholder_identifier}]"
-
-    if two_steps:
-        placeholder = rules.placeholders[placeholder_identifier]
-        picked_placeholder_value = None
-        if len(placeholder.categories) == 1:
-            if "" not in placeholder.categories:
-                return f"[ERROR: Single value of placeholder {placeholder_identifier} is not \"\"]"
-            picked_placeholder_value = ""
-        else:
-            placeholder_value_keys = list(placeholder.categories.keys())
-            picked_placeholder_value = random.choice(placeholder_value_keys)
-            
-        placeholder_templates = placeholder.categories[picked_placeholder_value]
-        if len(placeholder_templates) == 0:
-            return f"[ERROR: No templates for placeholder {placeholder_identifier}] at value {picked_placeholder_value}"
-    else:
-        all_placeholder_templates = []
-        for _, placeholder_templates in rules.placeholders[placeholder_identifier].categories.items():
-            all_placeholder_templates += placeholder_templates
-        placeholder_templates = all_placeholder_templates
-
-        if len(placeholder_templates) == 0:
-            return f"[ERROR: No templates for placeholder {placeholder_identifier}]"
-    
-    if placeholder_identifier == "ORIENTATION" and allowed_orientations:
-        #orientations_strings = [t.template for t in allowed_orientations]
-        #print(f"Drawing from {len(allowed_orientations)} ORIENTATIONs: {orientations_strings}")
-        placeholder_templates = allowed_orientations
-
-    picked_template = None
-    if placeholder_identifier == "OPERATION":
-        # NOTE(kilian): If any operator has already been used, choose the none operator (pick by choosing the one without placeholders)
-        used_operators = used_templates.get(placeholder_identifier, [])
-        if len(used_operators) > 0:
-            for template in placeholder_templates:
-                if len(template.placeholders) == 0:
-                    picked_template = template
-    if picked_template is None:
-        # NOTE(kilian): Pick any placeholder template that wasn't used already
-        used_placeholder_templates = used_templates.get(placeholder_identifier, [])
-        remaining_placeholder_templates = [template for template in placeholder_templates if template not in used_placeholder_templates]
-        # TODO(kilian): Possibly an issue in the future because none is also considered as an operator here?
-        if no_interaction_when_operator_used and len(used_templates.get("OPERATION", [])) > 0:
-            # NOTE(kilian): Remove any templates that contain interaction placeholders
-            remaining_placeholder_templates = [template for template in placeholder_templates if "INTERACTION" not in template.placeholders]
-        if len(remaining_placeholder_templates) == 0:
-            return f"[ERROR: Every template of placeholder {placeholder_identifier} was already used]"
-        picked_template = random.choice(remaining_placeholder_templates)
-
-    if placeholder_identifier not in used_templates:
-        used_templates[placeholder_identifier] = []
-    used_templates[placeholder_identifier].append(picked_template)
-
-    return picked_template
+def raise_unrecognized_placeholder(placeholder_id: str, recognized_placeholders):
+    recognized_placeholders_string = ", ".join(list(recognized_placeholders))
+    raise Exception(f"Placeholder '{placeholder_id}' is not recognized as it is not part of the rules placeholders ({recognized_placeholders_string}).")
 
 
-def template_to_string_random_recursive(generator: TemplateGenerator, template: PlaceholderTemplate) -> str:
-    if generator.print_tree:
-        tabs_string = '\t'*generator.depth
-        print(f"{tabs_string}{template.template}")
-    
-    shape_replacements = []
-    # NOTE(kilian): Pre generate all shape placeholders such that orientation restrictions can be applied
-    for token in template.tokens:
-        if token.is_placeholder and token.string == "SHAPE":
-            shape_replacements.append(random_placeholder_template_or_error(generator.rules, token.string, generator.two_random_steps, generator.used_templates))
+# MARK: General
 
-    def update_allowed_orientations(shape_index: int, prev_allowed_orientations: list[PlaceholderTemplate]|None) -> list[PlaceholderTemplate]|None:
-        allowed_orientations = []
-        if len(shape_replacements) == 0:
-            return None
+def make_placeholder_template(placeholder_id: str, template_text: str, prolog_list: list[str], orientations: list[str]) -> PlaceholderTemplate:
+    """
+    Creates a placeholder template by tokenizing the given template_text. Placeholders in the text must be surrounded by curly braces: {IDENTIFIER}.
+    """
 
-        if shape_index >= len(shape_replacements):
-            return prev_allowed_orientations
-
-        shape_replacement = shape_replacements[shape_index]
-        if isinstance(shape_replacement, PlaceholderTemplate):
-            # TODO(kilian): This is quite bad, should turn list of orientation strings into list of templates when loading the rules
-            for orientation_string in shape_replacement.orientations:
-                if orientation_string in generator.rules.placeholders["ORIENTATION"].templates_of_start_match:
-                    orientation_templates = generator.rules.placeholders["ORIENTATION"].templates_of_start_match[orientation_string]
-                    assert(len(orientation_templates) == 1)
-                    allowed_orientations.append(orientation_templates[0])
-                else:
-                    print(f"Invalid ORIENTATION '{orientation_string}' for SHAPE {shape_replacement.template}.")
-        return allowed_orientations
-    
-    shape_index = 0
-    allowed_orientations = update_allowed_orientations(shape_index, None)
-
-    result = ""
-    token_placeholder_count = 0
-    for token in template.tokens:
-        if token.is_placeholder:
-            if generator.print_tree:
-                print(f"{tabs_string}-> [{token_placeholder_count}] {token.string}")
-            if token.string == "SHAPE":
-                replacement = shape_replacements[shape_index]
-                shape_index += 1
-                allowed_orientations = update_allowed_orientations(shape_index, allowed_orientations)
-            else:
-                replacement = random_placeholder_template_or_error(generator.rules, token.string, generator.two_random_steps, generator.used_templates, allowed_orientations)
-            
-            if isinstance(replacement, PlaceholderTemplate):
-                generator.depth += 1
-                replacement = template_to_string_random_recursive(generator, replacement)
-                generator.depth -= 1
-            result += replacement
-            token_placeholder_count += 1
-        else:
-            result += token.string
-    return result
-
-
-def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random_steps: bool=False, print_tree: bool=False) -> str:
-    generator = TemplateGenerator(rules, depth=0, used_templates={}, two_random_steps=two_random_steps, print_tree=print_tree)
-    string = template_to_string_random_recursive(generator, starting_template)
-    return string
-
-
-def make_placeholder_template(identifier: str, template_text: str, placeholders_list: list[str], prolog_list: list[str], orientations: list[str]) -> PlaceholderTemplate:
     tokens: list[PlaceholderTemplate.Token] = []
-    if placeholders_list:
-        placeholders_pattern = re.compile("|".join([re.escape(f"{{{p}}}") for p in placeholders_list]))
-        remaining_text = template_text
-        
-        while True:
-            first_match = re.search(placeholders_pattern, remaining_text)
-            if first_match is None:
-                break
-            
-            prefix_string = remaining_text[:first_match.start(0)]
-            match_string = remaining_text[first_match.start(0) + 1:first_match.end(0) - 1]
-            remaining_text = remaining_text[first_match.end(0):]
-            if prefix_string != "":
-                tokens.append(PlaceholderTemplate.Token(prefix_string, False))
-            tokens.append(PlaceholderTemplate.Token(match_string, True))
-        if remaining_text != "":
-            tokens.append(PlaceholderTemplate.Token(remaining_text, False))
-    else:
-        tokens.append(PlaceholderTemplate.Token(template_text, False))
-    return PlaceholderTemplate(identifier, template_text, placeholders_list, tokens, prolog_list, orientations)
+    placeholders: set[str] = set()
+    
+    last_end_index = 0
+    for placeholder_match in re.finditer(r"\{([^\{\}]*)\}", template_text):
+        match_start_index = placeholder_match.start()
+        if last_end_index < match_start_index:
+            tokens.append(PlaceholderTemplate.Token(template_text[last_end_index:match_start_index], False))
+
+        placeholder = placeholder_match.group(1)
+        placeholders.add(placeholder)
+        tokens.append(PlaceholderTemplate.Token(placeholder, True))
+        last_end_index = placeholder_match.end()
+
+    # Add last template_text part or empty string if there are no tokens (like for the none operation, which doesn't have a text)
+    if last_end_index < len(template_text) or len(tokens) == 0:
+        tokens.append(PlaceholderTemplate.Token(template_text[last_end_index:], False))
+    
+    return PlaceholderTemplate(placeholder_id, template_text, placeholders, tokens, prolog_list, orientations)
 
 
 def load_json_rules(filename) -> Rules|None:
@@ -235,7 +129,7 @@ def load_json_rules(filename) -> Rules|None:
                 
                 def configure_placeholders(result, template_string, i, template_placeholders, selected_placeholders):
                     if i >= len(template_placeholders):
-                        result.append(make_placeholder_template(identifier, template_string, selected_placeholders[:], template_prolog, template_orientations))
+                        result.append(make_placeholder_template(identifier, template_string, template_prolog, template_orientations))
                     else:
                         for p in template_placeholders[i]:
                             selected_placeholders[i] = p
@@ -307,15 +201,178 @@ def print_rules(rules: Rules):
                 print(f"{tabs_str}{template.template}")
 
 
-def template_from_text(rules: Rules, text: str):
-    used_placeholders = []
-    template = (text + ".")[:-1]
-    for placeholder_identifier in rules.placeholders.keys():
-        if placeholder_identifier in text:
-            template = template.replace(placeholder_identifier, f"{{{placeholder_identifier}}}")
-            used_placeholders.append(placeholder_identifier)
-    return make_placeholder_template("CUSTOM", template, used_placeholders, [], [])
+def template_from_text(rules: Rules, text: str, placeholders_naked: bool=True) -> PlaceholderTemplate:
+    """
+    Creates a placeholder template from plain text. Only placeholder identifiers of the given rules are recognized.
 
+    If placeholders_naked is True, the placeholder identifiers are not expected to be surrounded by curly braces.
+    """
+
+    template = text[:]
+    recognized_placeholders: set[str] = set(rules.placeholders.keys())
+    if placeholders_naked:
+        for placeholder_identifier in recognized_placeholders:
+            if placeholder_identifier in text:
+                template = template.replace(placeholder_identifier, f"{{{placeholder_identifier}}}")
+
+    result = make_placeholder_template("CUSTOM", template, [], [])
+    for placeholder in result.placeholders:
+        if placeholder not in recognized_placeholders:
+            raise_unrecognized_placeholder(placeholder, recognized_placeholders)
+    return result
+
+
+# MARK: Generating
+
+def random_placeholder_template(rules: Rules, placeholder_id: str, two_steps: bool=False, used_templates: dict[str, list[PlaceholderTemplate]]|None = None, allowed_orientations: list[PlaceholderTemplate]|None = None, no_interaction_when_operator_used: bool = True) -> PlaceholderTemplate:
+    """
+    Randomly draws a placeholder template of the rules placeholder templates with given placeholder_id.
+    Placeholder templates that are stored in used_templates are not considered.
+
+    By setting allowed_orientations it is also possible to restrict the set of orientation templates further to just those specified in the list. used_templates is still applied.
+
+    If two_steps is true, first a random placeholder category (like "at least" for QUANTITY in zendo_rules.json) is drawn and then a template of that category.
+    Otherwise, a random template is drawn from the templates of all placeholder categories.
+
+    If no_interaction_when_operator_used is True, then no templates with INTERACTION placeholder will be considered if any operator was used previously.
+    """ 
+
+    if placeholder_id not in rules.placeholders:
+        raise_unrecognized_placeholder(placeholder_id, rules.placeholders.keys())
+
+    # NOTE(kilian): First, pick placeholder_templates
+    if placeholder_id == "ORIENTATION" and allowed_orientations:
+        placeholder_templates = allowed_orientations
+
+        if len(placeholder_templates) == 0:
+            raise Exception("No templates specified as allowed orientations.")
+    elif two_steps:
+        placeholder = rules.placeholders[placeholder_id]
+        if len(placeholder.categories) == 1:
+            if "" not in placeholder.categories:
+                raise Exception(f"Single category of placeholder '{placeholder_id}' is not \"\".")
+            picked_placeholder_category = ""
+        else:
+            picked_placeholder_category = random.choice(list(placeholder.categories.keys()))
+            
+        placeholder_templates = placeholder.categories[picked_placeholder_category]
+        if len(placeholder_templates) == 0:
+            raise Exception(f"No templates for placeholder '{placeholder_id}' in category '{picked_placeholder_category}'.")
+    else:
+        placeholder_templates = rules.placeholders[placeholder_id].all_templates
+
+        if len(placeholder_templates) == 0:
+            raise Exception(f"No templates for placeholder '{placeholder_id}'.")
+
+    # NOTE(kilian): Next, pick one
+    picked_template = None
+    if placeholder_id == "OPERATION":
+        # NOTE(kilian): If any operator has already been used, choose the none operator (pick by choosing the one without placeholders)
+        used_operators = used_templates.get(placeholder_id, [])
+        if len(used_operators) > 0:
+            for template in placeholder_templates:
+                if len(template.placeholders) == 0:
+                    picked_template = template
+    if picked_template is None:
+        # NOTE(kilian): Pick any placeholder template that wasn't used already
+        # TODO(kilian): Find better to check if two templates are equal? Currently checking if their template texts are equal
+        used_placeholder_template_texts = [template.template for template in used_templates.get(placeholder_id, [])]
+        remaining_placeholder_templates = [template for template in placeholder_templates if template.template not in used_placeholder_template_texts]
+        # TODO(kilian): Possibly an issue in the future because none is also considered as an operator here?
+        if no_interaction_when_operator_used and len(used_templates.get("OPERATION", [])) > 0:
+            # NOTE(kilian): Remove any templates that contain interaction placeholders
+            remaining_placeholder_templates = [template for template in remaining_placeholder_templates if "INTERACTION" not in template.placeholders]
+        if len(remaining_placeholder_templates) == 0:
+            raise Exception(f"Every template of placeholder '{placeholder_id}' was already used.")
+        picked_template = random.choice(remaining_placeholder_templates)
+
+    if placeholder_id not in used_templates:
+        used_templates[placeholder_id] = []
+    used_templates[placeholder_id].append(picked_template)
+
+    return picked_template
+
+
+def template_to_string_random_recursive(generator: TemplateGenerator, template: PlaceholderTemplate) -> str:
+    if generator.print_tree:
+        tabs_string = '\t'*generator.depth
+        print(f"{tabs_string}{template.template}")
+    
+    shape_replacements = []
+    # NOTE(kilian): Pre generate all shape placeholders such that orientation restrictions can be applied
+    for token in template.tokens:
+        if token.is_placeholder and token.string == "SHAPE":
+            try:
+                shape_replacement = random_placeholder_template(generator.rules, token.string, generator.two_random_steps, generator.used_templates)
+            except Exception as e:
+                shape_replacement = f"[Error: {str(e)}]"
+            shape_replacements.append(shape_replacement)
+
+    def compute_allowed_orientations(shape_index: int) -> list[PlaceholderTemplate]|None:
+        allowed_orientations = []
+        if len(shape_replacements) == 0:
+            return None
+
+        if shape_index >= len(shape_replacements):
+            # NOTE(kilian): This shouldn't happen
+            assert False
+
+        shape_replacement = shape_replacements[shape_index]
+        
+        # TODO(kilian): This is quite bad, should turn list of orientation strings into list of templates when loading the rules
+        if isinstance(shape_replacement, PlaceholderTemplate):
+            for orientation_string in shape_replacement.orientations:
+                if orientation_string in generator.rules.placeholders["ORIENTATION"].templates_of_start_match:
+                    orientation_templates = generator.rules.placeholders["ORIENTATION"].templates_of_start_match[orientation_string]
+                    assert(len(orientation_templates) == 1)
+                    allowed_orientations.append(orientation_templates[0])
+                else:
+                    print(f"Warning: ORIENTATION '{orientation_string}' drawn SHAPE {shape_replacement.template} doesn't exist.")
+        return allowed_orientations
+    
+    next_shape_index = 0
+
+    result = ""
+    token_placeholder_count = 0
+    for i, token in enumerate(template.tokens):
+        if token.is_placeholder:
+            if generator.print_tree:
+                print(f"{tabs_string}-> [{token_placeholder_count}] {token.string}")
+            if token.string == "SHAPE":
+                replacement = shape_replacements[next_shape_index]
+                if isinstance(replacement, PlaceholderTemplate):
+                    result += replacement.template
+                else:
+                    result += replacement
+                next_shape_index += 1
+            else:
+                allowed_orientations = None
+                if i + 1 < len(template.tokens):
+                    next_token = template.tokens[i + 1]
+                    if next_token.is_placeholder and next_token.string == "SHAPE":
+                        allowed_orientations = compute_allowed_orientations(next_shape_index)
+                try:
+                    replacement = random_placeholder_template(generator.rules, token.string, generator.two_random_steps, generator.used_templates, allowed_orientations)
+                    generator.depth += 1
+                    replacement = template_to_string_random_recursive(generator, replacement)
+                    generator.depth -= 1
+                    result += replacement
+                except Exception as e:
+                    result += f"[Error: {str(e)}]"
+
+            token_placeholder_count += 1
+        else:
+            result += token.string
+    return result
+
+
+def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random_steps: bool=False, print_tree: bool=False) -> str:
+    generator = TemplateGenerator(rules, depth=0, used_templates={}, two_random_steps=two_random_steps, print_tree=print_tree)
+    string = template_to_string_random_recursive(generator, starting_template)
+    return string
+
+
+# MARK: Parsing
 
 # NOTE(kilian): Returns a rule node or a reason why the template does not match.
 def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTemplate) -> tuple[RuleNode, str]|str:
@@ -389,7 +446,9 @@ def print_rule_nodes(root: RuleNode):
         depth += 1
 
 
-def rule_to_prolog(root: RuleNode):
+# MARK: Prolog conversion
+
+def rule_to_prolog(root: RuleNode) -> tuple[str, str]:
     @dataclass
     class PrologCall:
         function_name: str|None = None
@@ -402,17 +461,17 @@ def rule_to_prolog(root: RuleNode):
         # NOTE(kilian): Generates an "or" list of "anded" PrologCall objects
         for child in node.children:
             if len(child.template.prolog) == 0:
-                if node.template.identifier == "QUANTITY":
-                    if child.template.identifier == "NUMBER":
+                if node.template.placeholder_id == "QUANTITY":
+                    if child.template.placeholder_id == "NUMBER":
                         ors[-1][-1].number.append(child.template.template)
                     else:
                         ors[-1][-1].quantity.append(child.template.template)
-                elif node.template.identifier == "INTERACTION":
+                elif node.template.placeholder_id == "INTERACTION":
                     ors[-1][-1].interaction.append(child.template.template)
                 else:
-                    print(f"ERROR: Unexpected template identifier '{node.template.identifier}' with no prolog data.")
+                    print(f"ERROR: Unexpected template identifier '{node.template.placeholder_id}' with no prolog data.")
             else:
-                match child.template.identifier:
+                match child.template.placeholder_id:
                     case "INTERACTION":
                         ors[-1][-1].interaction_name = child.template.prolog[0]
                     case "QUANTITY":
@@ -459,7 +518,9 @@ def rule_to_prolog(root: RuleNode):
     return f"generate_valid_structure([{ored_call_string}], Structure)", f"generate_invalid_structure([{ored_call_string}], Structure)"
 
 
-def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print_parse=False, debug_print_nodes=False) -> str:
+# MARK: Combined
+
+def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderTemplate, debug_print_parse=False, debug_print_nodes=False) -> tuple[str, str]:
     root = parse_rule_text(rules, rule, starting_template, debug_print=debug_print_parse)
     if debug_print_nodes:
         print_rule_nodes(root)
@@ -490,3 +551,13 @@ def generate_prolog_structure(num_examples, query, prolog_file = 'rules/rules.pl
             results.append(structure)
 
     return results
+
+
+if __name__ == "__main__":
+    rule, query, n_query = generate_rule()
+    r1 = generate_prolog_structure(1, query)
+    r2 = generate_prolog_structure(1, n_query)
+
+    print(rule)
+    print(query, "\n", r1)
+    print(n_query, "\n", r2)
