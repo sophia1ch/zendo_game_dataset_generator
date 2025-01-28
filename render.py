@@ -106,6 +106,11 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             generate_structure(args, structure, collection)
             render(args, str(rule_idx), scene_name)
 
+            # TODO: Check if this really is a fix for the generation of multiple scenes
+            for obj in collection.objects:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            ZendoObject.instances.clear()
+
             # Save GT information
             file_path = os.path.join(args.output_dir, str(rule_idx), f"{scene_name}.txt")
             with open(file_path, "w") as file:
