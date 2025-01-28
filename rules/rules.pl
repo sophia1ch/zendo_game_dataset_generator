@@ -16,7 +16,8 @@ shape(pyramid).
 shape(wedge).
 shape(block).
 
-interaction(grounded). % specific case: handled like attribute and not an interaction, so check with attribute rules
+% Grounded = specific case: handled like attribute and not an interaction, so check with attribute rules !!!
+interaction(grounded). % Never the only attribute in a rule, so always in combination with an orientation, color or shape attribute!
 interaction(touching(_)).
 interaction(pointing(_)).
 interaction(on_top_of(_)).
@@ -290,10 +291,9 @@ odd_number_of(Attr, Structure) :-
     count_attribute(Attr, Structure, C),
     1 is C mod 2.
 
-even_number_of(Attr, Structure) :-
-    count_attribute(Attr, Structure, C),
-    C \= 0,
-    0 is C mod 2.
+odd_number_of(A1, A2, Structure) :-
+    count_multiple_attributes(A1, A2, Structure, C),
+    1 is C mod 2.
 
 odd_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
     findall(Item,
@@ -302,6 +302,16 @@ odd_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
         Filtered),
     length(Filtered, C),
     1 is C mod 2.
+
+even_number_of(Attr, Structure) :-
+    count_attribute(Attr, Structure, C),
+    C \= 0,
+    0 is C mod 2.
+
+even_number_of(A1, A2, Structure) :-
+    count_multiple_attributes(A1, A2, Structure, C),
+    C \= 0,
+    0 is C mod 2.
 
 even_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
     findall(Item,
