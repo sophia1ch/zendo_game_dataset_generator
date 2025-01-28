@@ -52,7 +52,15 @@
         "prolog": ["odd_number_of"]
       },
       {
-        "template": "an odd number of {SHAPE} pieces {INTERACTION}",
+        "template": "an odd number of {COLOR|ORIENTATION} {SHAPE} pieces",
+        "prolog": ["odd_number_of"]
+      },
+      {
+        "template": "an odd number of {COLOR} {ORIENTATION} pieces",
+        "prolog": ["odd_number_of"]
+      },
+      {
+        "template": "an odd number of {COLOR|ORIENTATION|SHAPE} pieces {INTERACTION}",
         "prolog": ["odd_number_of_interaction"]
       }
     ],
@@ -66,7 +74,15 @@
         "prolog": ["even_number_of"]
       },
       {
-        "template": "an even number of {SHAPE} pieces {INTERACTION}",
+        "template": "an even number of {COLOR|ORIENTATION} {SHAPE} pieces",
+        "prolog": ["even_number_of"]
+      },
+      {
+        "template": "an even number of {COLOR} {ORIENTATION} pieces",
+        "prolog": ["even_number_of"]
+      },
+      {
+        "template": "an even number of {COLOR|ORIENTATION|SHAPE} pieces {INTERACTION}",
         "prolog": ["even_number_of_interaction"]
       }
     ],
@@ -135,7 +151,6 @@
     }
   ],
   "NUMBER": [
-    0,
     1,
     2,
     3

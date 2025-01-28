@@ -40,13 +40,23 @@ an odd number of ...
 ✔    an odd number of COLOR pieces OPERATION
 ✔    an odd number of ORIENTATION pieces OPERATION
 ✔    an odd number of SHAPE pieces OPERATION
+✔    an odd number of COLOR SHAPE pieces
+✔    an odd number of ORIENTATION SHAPE pieces
+✔    an odd number of COLOR ORIENTATION pieces
 ✔    an odd number of SHAPE pieces INTERACTION
+✔    an odd number of COLOR pieces INTERACTION
+✔    an odd number of ORIENTATION pieces INTERACTION
 an even number of ...
 ✔    an even number of total pieces
 ✔    an even number of COLOR pieces OPERATION
 ✔    an even number of ORIENTATION pieces OPERATION
+✔    an even number of COLOR SHAPE pieces
+✔    an even number of ORIENTATION SHAPE pieces
+✔    an even number of COLOR ORIENTATION pieces
 ✔    an even number of SHAPE pieces OPERATION
 ✔    an even number of SHAPE pieces INTERACTION
+✔    an even number of COLOR pieces INTERACTION
+✔    an even number of ORIENTATION pieces INTERACTION
 either ... or ...
 ✔    either NUMBER or NUMBER of total pieces
 
