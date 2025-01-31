@@ -155,7 +155,6 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             # If not possible to generate in blender, generate a new structure with prolog and try again
             print(f"Error in scene generation: {e}")
             scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
-            i += 1
 
 
 def main(args):
