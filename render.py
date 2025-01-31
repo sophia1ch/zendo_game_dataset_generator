@@ -11,7 +11,7 @@ import random
 from rules.rules import generate_rule, generate_prolog_structure
 import zendo_objects
 import time
-
+import csv
 
 import utils
 from zendo_objects import *
@@ -60,10 +60,10 @@ def render(args, output_path, name):
             device.use = False
 
     # Debug render devices being used
-    print(f"Using compute_device_type: {preferences.compute_device_type}")
-    print(f"Render device set to: {bpy.context.scene.cycles.device}")
-    for device in preferences.devices:
-        print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
+    # print(f"Using compute_device_type: {preferences.compute_device_type}")
+    # print(f"Render device set to: {bpy.context.scene.cycles.device}")
+    # for device in preferences.devices:
+        # print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
 
     #######################################################
     # Render
@@ -83,12 +83,34 @@ def render(args, output_path, name):
 
     print("Saving output image to:", bpy.context.scene.render.filepath)
 
-    # Render image and write to disk instead of only keeping in memory
+    # Redirect output to log file
+    logfile = 'blender_render.log'
+    open(logfile, 'a').close()
+    old = os.dup(sys.stdout.fileno())
+    sys.stdout.flush()
+    os.close(sys.stdout.fileno())
+    fd = os.open(logfile, os.O_WRONLY)
+
+    # Do the rendering
     bpy.ops.render.render(write_still=True)
+
+    # Disable output redirection
+    os.close(fd)
+    os.dup(old)
+    os.close(old)
 
     if args.save_blendfile:
         bpy.context.preferences.filepaths.save_version = 0
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.output_dir, output_path, f"{name}.blend"))
+
+
+def get_all_scene_objects():
+    bpy.context.view_layer.update()
+    object_list = []
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH' and any(k in obj.name for k in ["Pyramid", "Wedge", "Block"]):
+            object_list.append(obj)
+    return object_list
 
 
 def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, negative=False):
@@ -106,21 +128,34 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             generate_structure(args, structure, collection)
             render(args, str(rule_idx), scene_name)
 
+            # Buffer scene objects for writing to CSV
+            scene_objects = ZendoObject.instances
+
+            csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+
+            with open(csv_file_path, "a", newline="") as csvfile:
+                csv_writer = csv.writer(csvfile)
+
+                for obj in scene_objects:
+                    min_bb, max_bb = obj.get_world_bounding_box()
+                    world_pos = obj.get_position()
+
+                    csv_writer.writerow([scene_name, rule, query, obj.name,
+                                         min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
+                                         world_pos.x, world_pos.y, world_pos.z])
+
             # TODO: Check if this really is a fix for the generation of multiple scenes
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
 
-            # Save GT information
-            file_path = os.path.join(args.output_dir, str(rule_idx), f"{scene_name}.txt")
-            with open(file_path, "w") as file:
-                file.write(str(rule) + "\n" + str(query) + "\n" + str(structure))
             i += 1
 
         except Exception as e:
             # If not possible to generate in blender, generate a new structure with prolog and try again
+            print(f"Error in scene generation: {e}")
             scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
-            print(e)
+            i += 1
 
 
 def main(args):
@@ -139,6 +174,15 @@ def main(args):
     num_examples = args.num_examples
     num_invalid_examples = args.num_invalid_examples
     generate_invalid_examples = args.generate_invalid_examples
+
+    # Write CSV header
+    csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+    with open(csv_file_path, "w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["scene_name", "rule", "query", "object_name",
+                             "bounding_box_min_x", "bounding_box_min_y", "bounding_box_min_z",
+                             "bounding_box_max_x", "bounding_box_max_y", "bounding_box_max_z",
+                             "world_pos_x", "world_pos_y", "world_pos_z"])
 
     for r in range(num_rules):
         # get rule in string form and query, negative query in prolog form
