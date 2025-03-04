@@ -13,10 +13,17 @@ This project generates a synthetic dataset for the Zendo game using the Blender 
 ## Project Structure
 
 - `blender_objects.py`: Contains the `blender_obj` class for manipulating Blender objects, including position, color, scaling, and rendering settings.
+- `generate.py`: ???
+- `structure.py`: ???
+- `zendo_objects.py`: ???
 - `render.py`: The main script that orchestrates scene creation, object placement, and rendering.
 - `utils.py`: Utility functions for argument parsing and loading object properties from configuration files.
 - `requirements.txt`: Dependencies required for the project.
 - `setup_env.sh` / `setup_env.ps1`: Scripts to set up the Conda environment automatically.
+- `configs/simple_config.yml`: ???
+- `rules/rules.py`: ???
+- `rules/rules.pl`: ???
+- `rules/zendo_rules.json`: ???
 
 ## Installation Methods
 

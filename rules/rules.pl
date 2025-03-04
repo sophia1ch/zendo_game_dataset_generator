@@ -35,7 +35,7 @@ generate_valid_structure(Checks, Structure) :-
     interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
 
-% Generate repeatedly until a structure doesn´t fulfills the checks
+% Generate repeatedly until a structure doesn`t fulfills the checks
 generate_invalid_structure(Checks, Structure) :-
     repeat,
     generate_structure(Structure),
@@ -167,6 +167,7 @@ interaction_constraint_check(Structure) :-
         )
     ),
     % Allow a flat block to have up to two items on_top_of it; other items can only have one
+    % Currently the rule is turned off: If you want to activate, change the Count of the rule
     forall(
         member(item(TargetId, _, TargetShape, TargetOrientation, _), Structure),
         (
@@ -174,7 +175,8 @@ interaction_constraint_check(Structure) :-
                 (
                     findall(SourceId, member(item(SourceId, _, _, _, on_top_of(TargetId)), Structure), Sources),
                     length(Sources, Count),
-                    Count =< 2
+                    % Change to 2, if you want to activate the two objects on top of a flat block rule
+                    Count =< 1
                 );
                 (
                     findall(SourceId, member(item(SourceId, _, _, _, on_top_of(TargetId)), Structure), Sources),
@@ -228,8 +230,9 @@ interaction_constraint_check(Structure) :-
 has_loop(StartId, Structure) :-
     has_loop_helper(StartId, StartId, Structure, []).
 
+% If the current ID has already been visited, there`s a loop
 has_loop_helper(_, CurrentId, _, Visited) :-
-    member(CurrentId, Visited), % If the current ID has already been visited, there's a loop
+    member(CurrentId, Visited),
     !.
 has_loop_helper(StartId, CurrentId, Structure, Visited) :-
     member(item(CurrentId, _, _, _, on_top_of(NextId)), Structure),
