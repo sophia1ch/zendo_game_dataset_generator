@@ -34,6 +34,24 @@ generate_valid_structure(Checks, Structure) :-
     generate_structure(Structure),
     interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
+%    generate_valid_structure_limit(Checks, Structure, 1000).
+%
+%generate_valid_structure_limit(_, _, 0) :-
+%    write("End"), nl,
+%    !,
+%    fail.
+%
+%generate_valid_structure_limit(Checks, Structure, Attempts) :-
+%    Attempts > 0,
+%    NextAttempts is Attempts - 1,
+%    write("tried"), nl,
+%    generate_structure(Structure),
+%    write(Attempts), write("generated: "), write(Structure), nl,
+%    (interaction_constraint_check(Structure) ->
+%        (and(Checks) -> !; generate_valid_structure_limit(Checks, Structure, NextAttempts));
+%        generate_valid_structure_limit(Checks, Structure, NextAttempts)
+%    ).
+
 
 % Generate repeatedly until a structure doesn`t fulfills the checks
 generate_invalid_structure(Checks, Structure) :-
@@ -45,7 +63,8 @@ generate_invalid_structure(Checks, Structure) :-
 generate_structure(Structure) :-
     max_items(Max),
     random_between(1, Max, N),
-    generate_items(N, N, Structure).
+    repeat,
+    (generate_items(N, N, Structure) -> !; fail).
 
 generate_items(0, _, []) :- !.
 generate_items(N, TotalN, [item(Id,C,S,O,I)|Rest]) :-
