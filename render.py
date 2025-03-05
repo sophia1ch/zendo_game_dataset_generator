@@ -1,20 +1,11 @@
-import bpy
-import mathutils, platform
-from pathlib import Path
-import os, sys, argparse
-import json
+import platform
+import sys, argparse
 from argparse import Namespace
 import yaml
-from structure import *
-import numpy as np
-import random
 from rules.rules import generate_rule, generate_prolog_structure
-import zendo_objects
 import time
 import csv
 import multiprocessing
-
-import utils
 from zendo_objects import *
 from generate import generate_structure
 
@@ -129,6 +120,7 @@ def threading_prolog_query(args):
         result = result_async.get(timeout=5)
     except multiprocessing.TimeoutError:
         print(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
+        pool.close()
         return None
     else:
         pool.close()
@@ -148,6 +140,8 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
         scene_name = f"{rule_idx}_{i}"
         if negative:
             scene_name = f"{rule_idx}_{i}_n"
+        img_path = os.path.join(args.output_dir, f"{rule_idx}", scene_name + ".png")
+
         try:
             # Now generate it in blender
             generate_structure(args, structure, collection)
@@ -165,7 +159,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
                     min_bb, max_bb = obj.get_world_bounding_box()
                     world_pos = obj.get_position()
 
-                    csv_writer.writerow([scene_name, rule, query, obj.name,
+                    csv_writer.writerow([scene_name, img_path, rule, query, obj.name,
                                          min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
                                          world_pos.x, world_pos.y, world_pos.z])
 
@@ -204,7 +198,7 @@ def main(args):
     csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
     with open(csv_file_path, "w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["scene_name", "rule", "query", "object_name",
+        csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name",
                              "bounding_box_min_x", "bounding_box_min_y", "bounding_box_min_z",
                              "bounding_box_max_x", "bounding_box_max_y", "bounding_box_max_z",
                              "world_pos_x", "world_pos_y", "world_pos_z"])
