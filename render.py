@@ -12,6 +12,7 @@ from rules.rules import generate_rule, generate_prolog_structure
 import zendo_objects
 import time
 import csv
+import multiprocessing
 
 import utils
 from zendo_objects import *
@@ -113,9 +114,33 @@ def get_all_scene_objects():
     return object_list
 
 
+def threading_prolog_query(args):
+    """
+    Threading the generating of the scenes with the given prolog query, as the query can be to complicated
+    and then prolog will not generate an result and end in an infinity-loop. Every query that takes longer than
+    5 seconds is aborted!
+    """
+    # Start a thread to time it
+    pool = multiprocessing.Pool(processes=1)
+    result_async = pool.apply_async(generate_prolog_structure,
+                                    args=args)
+
+    try:
+        result = result_async.get(timeout=5)
+    except multiprocessing.TimeoutError:
+        print(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
+        return None
+    else:
+        pool.close()
+        pool.join()
+        return result
+
+
 def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, negative=False):
-    # Generate structure array from prolog with given query
-    scenes = generate_prolog_structure(num_examples, query, args.rules_prolog_file)
+    # Get the scenes from the prolog query. Need to thread it to get a timeout if it takes to long
+    scenes = threading_prolog_query(args=(num_examples, query, args.rules_prolog_file))
+    if scenes is None:
+        return False
 
     i = 0
     while i < num_examples:
@@ -155,6 +180,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             # If not possible to generate in blender, generate a new structure with prolog and try again
             print(f"Error in scene generation: {e}")
             scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
+    return True
 
 
 def main(args):
@@ -182,18 +208,23 @@ def main(args):
                              "bounding_box_min_x", "bounding_box_min_y", "bounding_box_min_z",
                              "bounding_box_max_x", "bounding_box_max_y", "bounding_box_max_z",
                              "world_pos_x", "world_pos_y", "world_pos_z"])
-
-    for r in range(num_rules):
+    r = 0
+    while r < num_rules:
         # get rule in string form and query, negative query in prolog form
         rule, query, n_query = generate_rule(rules_json_file)
 
         collection = bpy.data.collections.new("Structure")
         bpy.context.scene.collection.children.link(collection)
 
-        generate_blender_examples(args, collection, num_examples, r, rule, query, False)
+        generated_successfully = generate_blender_examples(args, collection, num_examples, r, rule, query, False)
+        # If result is not true, than prolog query took to long, therefore try again
+        if not generated_successfully:
+            continue
+
         # If bool is set for generating also scenes which doesn't fulfill the rule
         if generate_invalid_examples:
             generate_blender_examples(args, collection, num_invalid_examples, r, rule, n_query, True)
+        r += 1
 
     print(f"Time to complete: {time.time() - start_time}")
 

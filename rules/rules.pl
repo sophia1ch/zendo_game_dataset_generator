@@ -34,6 +34,13 @@ generate_valid_structure(Checks, Structure) :-
     generate_structure(Structure),
     interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
+
+% Generating with a limit, if the given query is to complicated (probability of generating it, is to low) then stop after a specific number of attempts
+% Not so easy to implement (currently not complete), because the recursive function doesn`t work with generating new structures every new attempt.
+% That is because the function writes Structure in the first loop and in the later loop it is already written, what concludes in errors.
+% Changing the output to a new `Variable` doesn`t work either, because Structure is the variable which is tested in `Checks`
+% Currently this error is captured by the generating_scene function and threading
+%generate_valid_structure(Checks, Structure) :-
 %    generate_valid_structure_limit(Checks, Structure, 1000).
 %
 %generate_valid_structure_limit(_, _, 0) :-
