@@ -11,6 +11,20 @@ from generate import generate_structure
 
 
 def render(args, output_path, name):
+    """
+    Renders a scene using Blender's Cycles engine with specified settings.
+
+    This function sets up the rendering configuration, including the compute device,
+    resolution, sampling, and output file format. It then performs the rendering
+    and optionally saves the Blender scene file.
+
+    :param args: Configuration arguments for rendering, including resolution,
+                 sample count, output directory, and rendering options.
+    :param output_path: The subdirectory within the output directory where
+                        the rendered image will be saved.
+    :param name: The name of the rendered image file (without extension).
+    """
+
     #######################################################
     # Initialize render settings
     #######################################################
@@ -55,7 +69,7 @@ def render(args, output_path, name):
     # print(f"Using compute_device_type: {preferences.compute_device_type}")
     # print(f"Render device set to: {bpy.context.scene.cycles.device}")
     # for device in preferences.devices:
-        # print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
+    # print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
 
     #######################################################
     # Render
@@ -97,6 +111,16 @@ def render(args, output_path, name):
 
 
 def get_all_scene_objects():
+    """
+    Retrieves all mesh objects in the current Blender scene that match
+    specific object types (Pyramid, Wedge, Block).
+
+    This function updates the view layer and filters objects based on
+    their names to return only those relevant to the scene.
+
+    :return: A list of Blender mesh objects that match the specified types.
+    """
+
     bpy.context.view_layer.update()
     object_list = []
     for obj in bpy.data.objects:
@@ -107,10 +131,17 @@ def get_all_scene_objects():
 
 def threading_prolog_query(args):
     """
-    Threading the generating of the scenes with the given prolog query, as the query can be to complicated
-    and then prolog will not generate an result and end in an infinity-loop. Every query that takes longer than
-    5 seconds is aborted!
+    Executes a Prolog query for generating scene structures in a separate process
+    to prevent infinite loops caused by complex queries.
+
+    If the query takes longer than 5 seconds, it is aborted to avoid stalling.
+
+    :param args: A tuple containing the number of examples, the Prolog query,
+                 and the path to the Prolog rules file.
+    :return: The result of the Prolog query if completed within the timeout,
+             otherwise returns None.
     """
+
     # Start a thread to time it
     pool = multiprocessing.Pool(processes=1)
     result_async = pool.apply_async(generate_prolog_structure,
@@ -129,6 +160,23 @@ def threading_prolog_query(args):
 
 
 def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, negative=False):
+    """
+    Generates Blender scenes based on Prolog query results and renders them.
+
+    This function queries Prolog to generate scene structures, then constructs
+    the corresponding objects in Blender, renders the scene, and saves the data
+    to a CSV file.
+
+    :param args: Configuration arguments for scene generation and rendering.
+    :param collection: The Blender collection to store generated objects.
+    :param num_examples: The number of scene examples to generate.
+    :param rule_idx: Index of the rule being applied.
+    :param rule: The rule description used for scene generation.
+    :param query: The Prolog query defining the scene structure.
+    :param negative: Boolean flag indicating whether negative examples should be generated.
+    :return: True if scenes were successfully generated, False otherwise.
+    """
+
     # Get the scenes from the prolog query. Need to thread it to get a timeout if it takes to long
     scenes = threading_prolog_query(args=(num_examples, query, args.rules_prolog_file))
     if scenes is None:
@@ -178,6 +226,16 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
 
 
 def main(args):
+    """
+    Main function to generate and render structured scenes based on specified rules.
+
+    This function initializes the Blender scene, loads rules, generates structures
+    according to Prolog queries, renders the scenes, and stores the resulting data.
+
+    :param args: Configuration arguments for rule generation, scene creation,
+                 rendering, and file paths.
+    """
+
     #######################################################
     # Main
     #######################################################
@@ -211,7 +269,7 @@ def main(args):
         bpy.context.scene.collection.children.link(collection)
 
         generated_successfully = generate_blender_examples(args, collection, num_examples, r, rule, query, False)
-        # If result is not true, than prolog query took to long, therefore try again
+        # If result is not true, then prolog query took to long, therefore try again
         if not generated_successfully:
             continue
 
@@ -224,6 +282,13 @@ def main(args):
 
 
 if __name__ == '__main__':
+    """
+    Entry point for executing the rendering pipeline.
+
+    Parses command-line arguments, loads configuration settings from a YAML file, 
+    and initiates the main function to generate and render structured scenes.
+    """
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", type=str, default="configs/simple_config.yml",
                         help='config file for rendering')

@@ -9,10 +9,12 @@ from structure import *
 
 def check_pointing(observer: ZendoObject):
     """
-    Checks if the given zendo object points towards an object
-    :param observer: The zendo object to check
-    :return: A list of object it currently points towards
+    Determines which objects the given Zendo object is pointing toward.
+
+    :param observer: The ZendoObject to evaluate.
+    :return: A list of ZendoObjects that the observer is pointing at.
     """
+
     bpy.context.view_layer.update()
     results = []
 
@@ -20,7 +22,7 @@ def check_pointing(observer: ZendoObject):
         ray_path = [origin.copy()]
         direction = direction.normalized()
         current_location = origin.copy()
-        #origin.z = 0.001 # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
+        # origin.z = 0.001 # Ground offset because raycasting on 0 Z coordinate doesn't work reliably
         hit_location = origin.copy()
         while True:
             hit, hit_location, _, _, obj, _ = bpy.context.scene.ray_cast(
@@ -40,13 +42,24 @@ def check_pointing(observer: ZendoObject):
 
 
 def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None, margin: float = 0.0):
+    """
+    Checks for collisions between the given Zendo object and other objects in the scene.
+
+    :param zendo_object: The ZendoObject to check for collisions.
+    :param omit: An optional object to exclude from collision checks.
+    :param margin: A margin around the bounding box to extend the collision check.
+    :return: A list of ZendoObjects that are colliding with the given object.
+    """
+
     # Ensure the scene is updated
     bpy.context.view_layer.update()
 
     # Compute the bounding box of the object, including collision margin
     obj_bb = [zendo_object.obj.matrix_world @ Vector(corner) for corner in zendo_object.obj.bound_box]
-    obj_bb_min = Vector((min(v.x for v in obj_bb), min(v.y for v in obj_bb), min(v.z for v in obj_bb))) - Vector((margin,) * 3)
-    obj_bb_max = Vector((max(v.x for v in obj_bb), max(v.y for v in obj_bb), max(v.z for v in obj_bb))) + Vector((margin,) * 3)
+    obj_bb_min = Vector((min(v.x for v in obj_bb), min(v.y for v in obj_bb), min(v.z for v in obj_bb))) - Vector(
+        (margin,) * 3)
+    obj_bb_max = Vector((max(v.x for v in obj_bb), max(v.y for v in obj_bb), max(v.z for v in obj_bb))) + Vector(
+        (margin,) * 3)
 
     # List to store objects colliding with the given object
     colliding_objects = []
@@ -58,8 +71,12 @@ def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None, margin:
 
         # Get the world-space bounding box of the other object, including collision margin
         other_bb = [other_obj.obj.matrix_world @ Vector(corner) for corner in other_obj.obj.bound_box]
-        other_bb_min = Vector((min(v.x for v in other_bb), min(v.y for v in other_bb), min(v.z for v in other_bb))) - Vector((margin,) * 3)
-        other_bb_max = Vector((max(v.x for v in other_bb), max(v.y for v in other_bb), max(v.z for v in other_bb))) + Vector((margin,) * 3)
+        other_bb_min = Vector(
+            (min(v.x for v in other_bb), min(v.y for v in other_bb), min(v.z for v in other_bb))) - Vector(
+            (margin,) * 3)
+        other_bb_max = Vector(
+            (max(v.x for v in other_bb), max(v.y for v in other_bb), max(v.z for v in other_bb))) + Vector(
+            (margin,) * 3)
 
         # Check for overlap in bounding box (AABB collision detection)
         if (obj_bb_min.x <= other_bb_max.x and obj_bb_max.x >= other_bb_min.x and
@@ -69,7 +86,16 @@ def check_collision(zendo_object: ZendoObject, omit: ZendoObject = None, margin:
 
     return colliding_objects
 
+
 def get_random_position(anchor, radius):
+    """
+    Generates a random position within a circular area centered around an anchor point.
+
+    :param anchor: The central point from which the random position is generated.
+    :param radius: The maximum distance from the anchor within which the position is generated.
+    :return: A Vector representing the random position.
+    """
+
     angle = random.uniform(0, 2 * pi)
     # Random distance from the center (with uniform distribution in area)
     distance = random.uniform(0, radius)
@@ -81,12 +107,28 @@ def get_random_position(anchor, radius):
 
     return random_position
 
+
 def get_grounded(instructions):
+    """
+    Extracts and sorts objects that have the 'grounded' action from the given instructions.
+
+    :param instructions: A list of dictionaries representing object instructions.
+    :return: A sorted list of grounded objects based on their 'id' value.
+    """
+
     grounded_objects = [i for i in instructions if i.get('action') == 'grounded']
     grounded_objects = sorted(grounded_objects, key=lambda x: x['id'])
     return grounded_objects
 
+
 def get_relations(instructions):
+    """
+    Extracts and sorts objects based on their dependencies in relation to other objects.
+
+    :param instructions: A list of dictionaries representing object instructions.
+    :return: A sorted list of objects based on dependency resolution.
+    """
+
     related_objects = [i for i in instructions if i.get('action') != 'grounded']
 
     dependencies = defaultdict(list)
@@ -114,7 +156,16 @@ def get_relations(instructions):
 
     return sorted_objects
 
+
 def get_free_face(args, obj: ZendoObject):
+    """
+    Determines a free face of a given Zendo object.
+
+    :param args: Configuration arguments containing the random face choice setting.
+    :param obj: The ZendoObject whose free face is to be determined.
+    :return: A randomly selected free face if random selection is enabled, otherwise the first available face.
+    """
+
     random_faces = args.random_face_choice
     faces = obj.get_free_face()
     if random_faces:
@@ -122,7 +173,15 @@ def get_free_face(args, obj: ZendoObject):
     else:
         return faces[0]
 
+
 def generate_relation(instruction):
+    """
+    Parses an instruction to extract the relation type and the target object.
+
+    :param instruction: A dictionary containing the object instruction with an 'action' field.
+    :return: A tuple containing the relation type (string) and the target ZendoObject.
+    """
+
     relation = instruction['action']
     relation_type = relation.split('(')[0]
     relation_target = int(relation.split('(')[1][0])
@@ -133,18 +192,20 @@ def generate_relation(instruction):
 
 def generate_creation(args, instruction, collection):
     """
-        Generates Python command for creating an object
+    Generates a Zendo object based on the provided instruction and adds it to the collection.
 
-        :param args: Config arguments
-        :param instruction: Instruction dictionary.
-        :return: Object creation command as string.
-        """
+    :param args: Configuration arguments for object creation.
+    :param instruction: A dictionary containing object properties such as id, shape, color, orientation, and action.
+    :param collection: The Blender collection to which the created object will be added.
+    :return: The created ZendoObject instance.
+    """
+
     idx = instruction['id']
     shape = instruction['shape']
     color = instruction['color']
     orientation = instruction['orientation']
     action = instruction['action']
-    #name = f"{idx}_{shape}"
+    # name = f"{idx}_{shape}"
 
     if orientation == 'vertical':
         if shape == 'block':
@@ -166,7 +227,17 @@ def generate_creation(args, instruction, collection):
         obj.rotate_z(d)
     return obj
 
+
 def generate_structure(args, items: list[str], collection, attempt: int = 1):
+    """
+    Generates a structured scene based on a set of item descriptions and configuration parameters.
+
+    :param args: Configuration arguments for scene generation.
+    :param items: A list of item descriptions in Prolog format.
+    :param collection: The Blender collection where the generated objects will be stored.
+    :param attempt: The current attempt count for scene generation (used for retries).
+    :raises Exception: If the maximum number of generation attempts is exceeded.
+    """
 
     if attempt > args.generation_attempts:
         raise Exception(f"Exceeded generation attempts, unable to generate a scene for rule:\n {items}")
@@ -178,7 +249,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
     placement_attempts = args.placement_attempts
     los_threshold = args.los_threshold
 
-    #items = prolog_string
+    # items = prolog_string
     instructions = []
     for item in items:
         match = re.match(r"item\((\d+),\s*(\w+),\s*(\w+),\s*(\w+),\s*(.+)\)", item)
@@ -230,7 +301,8 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                     break
                 else:
                     attempts += 1
-                    print(f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
+                    print(
+                        f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
         else:
             relation_type, target = generate_relation(instruction)
             attempts = 0
@@ -257,7 +329,8 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                         break
                     else:
                         attempts += 1
-                        print(f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
+                        print(
+                            f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
 
                 elif relation_type == 'pointing':
                     pos = get_random_position(anchor=anchor_position, radius=placement_radius)
@@ -269,7 +342,8 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                         break
                     else:
                         attempts += 1
-                        print(f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
+                        print(
+                            f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
 
                 elif relation_type == 'on_top_of':
                     on_top(current_object, target, margin=touching_margin)
@@ -309,6 +383,13 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
 
 
 def check_scene_occlusion(threshold):
+    """
+    Checks whether objects in the scene are occluded beyond a given threshold.
+
+    :param threshold: The occlusion threshold, beyond which the scene is considered occluded.
+    :return: True if the occlusion exceeds the threshold, otherwise False.
+    """
+
     cam = bpy.data.objects["Camera.001"]
     camera_loc = cam.location
     targets = [
@@ -333,10 +414,10 @@ def check_scene_occlusion(threshold):
             )
 
             if (
-                hit
-                and hit_obj != obj
-                and "Ground" not in hit_obj.name
-                and (hit_loc - camera_loc).length < dir_vec.length - 1e-5
+                    hit
+                    and hit_obj != obj
+                    and "Ground" not in hit_obj.name
+                    and (hit_loc - camera_loc).length < dir_vec.length - 1e-5
             ):
                 blocked += 1
 

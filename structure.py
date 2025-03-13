@@ -7,15 +7,27 @@ import copy
 import random
 
 face_map = {
-        "front": ('X', 1),
-        "back": ('X', -1),
-        "right": ('Y', 1),
-        "left": ('Y', -1),
-        "top": ('Z', 1),
-        "bottom": ('Z', -1),
-    }
+    "front": ('X', 1),
+    "back": ('X', -1),
+    "right": ('Y', 1),
+    "left": ('Y', -1),
+    "top": ('Z', 1),
+    "bottom": ('Z', -1),
+}
+
 
 def check_beneath(object: ZendoObject):
+    """
+    Determines which objects are beneath the specified object in the scene.
+
+    This function calculates the world-space bounding box of the given object
+    and compares it with all other objects in the scene to determine which
+    objects are located directly beneath it.
+
+    :param object: The ZendoObject whose underlying objects need to be determined.
+    :return: A list of Blender objects that are positioned beneath the specified object.
+    """
+
     beneath_objects = []
 
     # Get the bounding box of the target object
@@ -36,13 +48,20 @@ def check_beneath(object: ZendoObject):
 
     return beneath_objects
 
+
 def on_top(object_1: ZendoObject, target: ZendoObject, margin: float = 0.0):
     """
-    Places object_1 ontop of target
-    :param object_1: Blender object to move.
-    :param target: Target blender object.
-    :param margin: Margin to offset the object to prevent clipping.
+    Places the first object on top of the target object.
+
+    If the target object is a Pyramid and both objects are in an upright position,
+    the function nests object_1 inside the pyramid. Otherwise, it aligns object_1
+    on the top face of the target object with an optional margin to prevent clipping.
+
+    :param object_1: The ZendoObject to be placed on top.
+    :param target: The ZendoObject that serves as the base.
+    :param margin: An optional margin to offset object_1 and prevent clipping.
     """
+
     bpy.context.view_layer.update()
     if type(target) is Pyramid and object_1.pose == 'upright' and target.pose == 'upright':
         nested(object_1, target)
@@ -50,16 +69,23 @@ def on_top(object_1: ZendoObject, target: ZendoObject, margin: float = 0.0):
         touching(object_1, target, face='top', margin=margin)
 
 
-
-
 def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', margin: float = 0.0):
     """
-    Place object_1 against object_2 along the specified axis.
-    :param object_1: Blender object to move.
-    :param object_2: Blender object to align with.
-    :param face: The face of object_2 to align object_1 with as a string ('front', 'back', 'right', 'left', 'top').
-    :param margin: Margin to offset the object to prevent clipping.
+    Aligns object_1 against object_2 along the specified face.
+
+    This function ensures that object_1 is placed adjacent to object_2
+    along a specified face without overlapping. It validates whether
+    the face is available and properly aligns the objects with an
+    optional margin to prevent clipping.
+
+    :param object_1: The ZendoObject to be moved.
+    :param object_2: The ZendoObject that serves as the reference.
+    :param face: The face of object_2 to align object_1 against
+                 ('front', 'back', 'right', 'left', 'top').
+    :param margin: An optional margin to prevent clipping.
+    :raises ValueError: If the specified face is invalid or already occupied.
     """
+
     # Ensure the requested face is valid
     bpy.context.view_layer.update()
     if face not in face_map:
@@ -100,14 +126,18 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
         object_1.grounded = False
 
 
-
 def nested(object_1: ZendoObject, object_2: Pyramid):
     """
-    Nests object_2 inside object_1, only pyramids can be nested inside other objects
+    Nests object_1 inside object_2, specifically for pyramids.
 
-    :param object_1: Blender object to nest inside.
-    :param object_2: Blender object to nest.
+    This function places object_1 inside object_2 by aligning their positions and
+    rotations. It ensures that object_1 is positioned correctly within object_2,
+    applying an offset to prevent clipping.
+
+    :param object_1: The ZendoObject to be nested inside object_2.
+    :param object_2: The Pyramid object that will contain object_1.
     """
+
     # Move the first object inside the second one
     bpy.context.view_layer.update()
     obj_2_pos = object_2.get_position()
@@ -134,23 +164,39 @@ def nested(object_1: ZendoObject, object_2: Pyramid):
     object_1.nests = object_2
     object_2.touching["top"] = object_1
     object_1.touching["bottom"] = object_2
-    #object_1.set_to_ground()
+    # object_1.set_to_ground()
 
 
 def weird(object_1: ZendoObject, object_2: ZendoObject, face: str):
+    """
+    Placeholder function for handling 'weird' interactions between two objects.
+
+    This function currently does nothing, but it is reserved for future use where
+    specific behavior for a "weird" interaction between two objects could be defined.
+
+    :param object_1: The first ZendoObject involved in the interaction.
+    :param object_2: The second ZendoObject involved in the interaction.
+    :param face: The face of object_1 or object_2 that is part of the interaction.
+    """
+
     pass
 
 
 def pointing(object_1: ZendoObject, target: ZendoObject):
     """
-    Points object_1 towards object_2
+    Points object_1 towards the target object.
 
-    :param object_1: Blender object to point towards object_2.
-    :param object_2: Blender object 2.
+    This function calculates the direction from object_1 to the target object and
+    rotates object_1 around the Z-axis to point in the correct direction. The
+    rotation is calculated based on the average direction of all rays emitted from
+    object_1's top, and the rotation is applied while preserving other existing rotations.
+
+    :param object_1: The ZendoObject to be rotated and pointed.
+    :param target: The ZendoObject that object_1 will point towards.
     """
+
     # Ensure the scene is updated
     bpy.context.view_layer.update()
-
 
     origin = object_1.obj.matrix_world.translation
 
@@ -164,9 +210,8 @@ def pointing(object_1: ZendoObject, target: ZendoObject):
     avg_origin = avg_origin / len(rays)
     avg_direction = avg_direction / len(rays)
 
-
-    #tip_vector = object_1.get_top_vector().normalized()
-    #tip_vector_xy = Vector((tip_vector.x, tip_vector.y, 0)).normalized()
+    # tip_vector = object_1.get_top_vector().normalized()
+    # tip_vector_xy = Vector((tip_vector.x, tip_vector.y, 0)).normalized()
 
     target_position = copy.deepcopy(target.obj.matrix_world.translation)
     target_direction_xy = mathutils.Vector((target_position.x - origin.x,

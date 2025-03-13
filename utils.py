@@ -3,10 +3,12 @@ import sys, json
 
 def extract_args(input_argv=None):
     """
-    Pull out command-line arguments after "--". Blender ignores command-line flags
-    after --, so this lets us forward command line arguments from the blender
-    invocation to our own script.
+    Extracts command-line arguments provided after "--" to forward them to the script.
+
+    :param input_argv: Optional list of command-line arguments. If None, defaults to sys.argv.
+    :return: List of arguments following the "--" separator.
     """
+
     if input_argv is None:
         input_argv = sys.argv
     output_argv = []
@@ -17,10 +19,25 @@ def extract_args(input_argv=None):
 
 
 def parse_args(parser, argv=None):
+    """
+    Parses command-line arguments using a provided ArgumentParser, considering only the arguments after --.
+
+    :param parser: An instance of argparse.ArgumentParser used to parse the arguments.
+    :param argv: Optional list of command-line arguments. If None, defaults to sys.argv.
+    :return: Namespace containing parsed arguments.
+    """
+
     return parser.parse_args(extract_args(argv))
 
 
 def read_properties_json(file_path):
+    """
+    Reads properties from a JSON file and returns mappings for object shapes, colors, and sizes.
+
+    :param file_path: Path to the JSON file containing properties.
+    :return: Tuple of dictionaries for object shapes, color mappings, and size values.
+    """
+
     file = open(file_path, "r")
     properties = json.load(file)
     color_name_to_rgba = {}

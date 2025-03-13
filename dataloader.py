@@ -8,6 +8,19 @@ import numpy as np
 
 class ZendoImageDataset(Dataset):
     def __init__(self, annotations_file, img_dir="output", transform=None, target_transform=None):
+        """
+        Initializes the ZendoImageDataset object.
+
+        :param annotations_file: Path to the CSV file containing image annotations.
+        :param img_dir: Directory where images are stored (default is "output").
+        :param transform: Optional transform to be applied to the images.
+        :param target_transform: Optional transform to be applied to the target labels.
+
+        The dataset reads the annotations file and organizes image labels into a structured list.
+        Each image may contain multiple objects, and each object has an entry in the annotation file.
+        The dataset maintains an index list to group objects belonging to the same image.
+        """
+
         self.img_labels = pd.read_csv(annotations_file)
         self.img_dir = img_dir
         self.transform = transform
@@ -30,16 +43,30 @@ class ZendoImageDataset(Dataset):
 
     def __len__(self):
         """
-        Returns the number of annotated images
+        Returns the number of annotated images in the dataset.
+
+        :return: Integer representing the number of unique images in the dataset.
         """
+
         return len(self.img_label_list)
 
     def __getitem__(self, idx):
         """
-        Returns the image with its labels and applies transformations.
-        Labels are separated by rule_based and object_based labels
-        Converts object shape (pyramid, block, wedge) into class_idx (0, 1, 2)
+        Retrieves an image and its corresponding labels from the dataset.
+
+        :param idx: Index of the image to retrieve.
+        :return: A tuple containing:
+            - image: The loaded image tensor.
+            - rule_labels: Labels associated with the image, based on predefined rules.
+            - obj_labels: A NumPy array containing object-specific labels.
+
+        The function extracts all labels for the given indexed image, differentiating between
+        rule-based labels (same for all objects in an image) and object-based labels (specific
+        to each object in the image). It also converts object shape labels (pyramid, block, wedge)
+        into numerical class indices (0, 1, 2). If transformation functions are provided, they
+        are applied to the image and labels before returning the final dataset item.
         """
+
         # Get all labels for the indexed image (multiple labels as we have multiple objects in each image)
         # Separate rule labels (same for all objects) from object labels (different for every object in image)
         rule_labels = self.img_labels.iloc[self.img_label_list[idx][0]].values[:4]
@@ -72,8 +99,22 @@ class ZendoImageDataset(Dataset):
 
 def custom_collate(batch):
     """
-    Custom collate function to handle variable-length object labels.
+    Custom collate function for handling variable-length object labels in a batch.
+
+    :param batch: A list of tuples containing:
+        - image: The image tensor.
+        - rule_labels: Labels associated with the image, based on predefined rules.
+        - obj_labels: A NumPy array of object-specific labels.
+    :return: A tuple containing:
+        - images: A stacked tensor of images.
+        - batch_rule_labels: A tuple of rule labels for each image.
+        - padded_obj_labels: A tensor containing padded object labels for each image.
+
+    The function processes batches by stacking images and padding object labels to the maximum
+    length in the batch. Object labels are converted to tensors, and any missing labels are
+    padded with -1 to ensure uniform batch sizes.
     """
+
     # Unzip the batch into images and labels
     images, batch_rule_labels, batch_obj_labels = zip(*batch)
 
@@ -112,6 +153,15 @@ def custom_collate(batch):
 
 
 if __name__ == '__main__':
+    """
+    This script initializes a `ZendoImageDataset` instance using an annotations CSV file and 
+    sets up a DataLoader with a custom collate function for batch processing. A batch of images 
+    and their corresponding labels are retrieved from the dataset. The first image in the batch 
+    is displayed using Matplotlib, and its associated rule-based and object-based labels are 
+    printed for inspection. This ensures the dataset structure and labels are correctly loaded 
+    and visualized.
+    """
+
     training_data = ZendoImageDataset("output/ground_truth.csv", "output", None, None)
     train_dataloader = DataLoader(training_data, batch_size=4, shuffle=True, collate_fn=custom_collate)
 
@@ -124,4 +174,3 @@ if __name__ == '__main__':
     print(f"Label: {rule_label}, {obj_label}")
     plt.imshow(img)
     plt.show()
-
