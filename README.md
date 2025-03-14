@@ -12,20 +12,34 @@ This project generates a synthetic dataset for the Zendo game using the Blender 
 
 ## Project Structure
 
-- `blender_objects.py`: Contains the `blender_obj` class for manipulating Blender objects, including position, color, scaling, and rendering settings.
-- `generate.py`: ???
-- `structure.py`: ???
-- `zendo_objects.py`: ???
+#### 1. Core Scripts for Dataset Generation
+
+- `generate.py`: Handles the generation of structured object placements and relationships based on Prolog rules and other logic-based conditions.
+- `rules/rules.py`: Defines rules and templates for generating Prolog queries and structural constraints for dataset generation.
+- `rules/rules.pl`: The Prolog script that defines logical constraints for structure generation.
+- `rules/zendo_rules.json`: JSON file containing placeholder templates and rules used for procedural dataset generation.
+
+#### 2. Blender Integration and Object Manipulation
+
+- `zendo_objects.py`: Defines object classes (`ZendoObject`, `Pyramid`, `Block`, `Wedge`) and their attributes, transformations, and interactions.
+- `structure.py`: Implements functions for placing and positioning objects in 3D space, ensuring valid relationships (e.g., stacking, touching, nesting).
 - `render.py`: The main script that orchestrates scene creation, object placement, and rendering.
 - `utils.py`: Utility functions for argument parsing and loading object properties from configuration files.
+
+#### 3. Dataset Handling and Machine Learning Integration
+
+- `dataloader.py`: Implements a torch.utils.data.Dataset for loading generated images and their corresponding labels from CSV annotations.
+
+#### 4. Configuration and Setup
+
+- `configs/simple_config.yml`: Specifies rendering and generation parameters for the dataset, such as object count, camera settings, and rule constraints.
 - `requirements.txt`: Dependencies required for the project.
 - `setup_env.sh` / `setup_env.ps1`: Scripts to set up the Conda environment automatically.
-- `configs/simple_config.yml`: ???
-- `rules/rules.py`: ???
-- `rules/rules.pl`: ???
-- `rules/zendo_rules.json`: ???
 
 ## Installation Methods
+
+> [!IMPORTANT]  
+> The SWI-Prolog environment must be setup on your system for the generation to work. Otherwise the scripts won't be able to execute the prolog logic of the project.
 
 You can set up the project environment using one of the following methods:
 
@@ -50,7 +64,7 @@ You can set up the project environment using one of the following methods:
 
 After completion, activate the Conda environment:
 ```bash
-conda activate ki_praktikum_env
+  conda activate ki_praktikum_env
 ```
 
 ### 2. Manual Environment Setup with Conda
@@ -81,6 +95,36 @@ If you prefer using your Python installation instead of Conda:
 
    **Note:** Using other Python versions may lead to compatibility issues. Only Python 3.11 is officially supported by these dependencies.
 
+## Usage
+
+After setting up the environment, you can generate scenes using Blender in **headless mode** (without GUI) and store the dataset in the `output/` directory.
+
+### 1. Running with Default Settings
+
+To generate a dataset using the default configuration:
+```bash
+  blender --background --python generate.py --
+```
+This will:
+- Generate scene structures using Prolog logic (`rules.pl`).
+- Place objects based on constraints in `rules/zendo_rules.json`.
+- Render the scenes using Blender.
+- Store dataset outputs (images & annotations) in the `output/` directory.
+
+### 2. Customize Scene Generation
+
+Modify `configs/simple_config.yml` to adjust:
+- Number of rules (`num_rules`)
+- Scenes per rule (`num_examples`)
+- Invalid scene generation (`generate_invalid_examples`)
+- Rendering resolution (`width`, `height`)
+- Object properties (`color`, `shape`, `size`)
+
+Then run the generation process:
+```bash
+  blender --background --python generate.py -- --config-file configs/custom_config.yml
+```
+
 ## Project Dependencies
 
 The following are the primary dependencies required for the project:
@@ -88,5 +132,10 @@ The following are the primary dependencies required for the project:
 - `mathutils==3.3.0`
 - `numpy==1.26.4`
 - `PyYAML==6.0.2`
+- `torch`
+- `torchvision`
+- `matplotlib`
+- `pandas`
+- `pyswip`
 
 These dependencies will be automatically handled by the Conda environment or `pip install`.

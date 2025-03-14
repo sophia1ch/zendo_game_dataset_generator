@@ -7,6 +7,11 @@ dependencies:
   - numpy=1.26.4
   - pyyaml=6.0.2
   - pip
+  - pandas
+  - matplotlib
   - pip:
       - bpy==4.3.0
       - mathutils==3.3.0
+      - torch
+      - torchvision
+      - pyswip
