@@ -39,7 +39,7 @@ This project generates a synthetic dataset for the Zendo game using the Blender 
 ## Installation Methods
 
 > [!IMPORTANT]  
-> The SWI-Prolog environment must be setup on your system for the generation to work. Otherwise the scripts won't be able to execute the prolog logic of the project.
+> SWI-Prolog must be installed and properly set up on your system for the generation process to work. Without it, the scripts will be unable to execute the project's Prolog logic.
 
 You can set up the project environment using one of the following methods:
 
