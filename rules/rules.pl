@@ -172,23 +172,27 @@ interaction_constraint_check(Structure) :-
                 (TargetInteraction = grounded,
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)));
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = vertical);
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = upright)));
                 % Pointing cases
                 (TargetInteraction = pointing(SourceId),
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)));
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = vertical);
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = upright)));
                 % Touching cases
                 (TargetInteraction = touching(_),
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)));
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = vertical);
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = upright)));
                 % On top of another item
                 (TargetInteraction = on_top_of(AnotherId),
                  AnotherId \= SourceId,
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation)))
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = vertical);
+                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = upright)))
             )
         )
     ),
