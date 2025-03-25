@@ -54,7 +54,7 @@ def render(args, output_path, name):
     # Explicitly activate the available devices based on compute_device_type
     for device in preferences.devices:
         # Activate only the OptiX device for NVIDIA GPU
-        if preferences.compute_device_type == "OPTIX" and device.type == "OPTIX":
+        if preferences.compute_device_type == "OPTIX" and device.type in ["OPTIX", "CUDA"]:
             device.use = True
         # If using METAL on Mac, activate both GPU and CPU devices
         elif preferences.compute_device_type == "METAL" and device.type in ["GPU", "CPU"]:
