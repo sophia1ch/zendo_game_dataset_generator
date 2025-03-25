@@ -103,7 +103,7 @@ After setting up the environment, you can generate scenes using Blender in **hea
 
 To generate a dataset using the default configuration:
 ```bash
-  blender --background --python generate.py --
+  blender --background --python render.py --
 ```
 This will:
 - Generate scene structures using Prolog logic (`rules.pl`).
@@ -122,7 +122,7 @@ Modify `configs/simple_config.yml` to adjust:
 
 Then run the generation process:
 ```bash
-  blender --background --python generate.py -- --config-file configs/custom_config.yml
+  blender --background --python render.py -- --config-file configs/custom_config.yml
 ```
 
 ## Project Dependencies
