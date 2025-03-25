@@ -5,6 +5,7 @@ import mathutils
 from mathutils import Vector, Euler, Quaternion
 import numpy as np
 import utils
+from utils import debug
 from dataclasses import dataclass
 
 
@@ -272,7 +273,6 @@ class ZendoObject:
 
         # Set the color
         color_node.outputs[0].default_value = (r, g, b, a)
-        # print(f"Setting color to: {r:.2f}, {g:.2f}, {b:.2f}, {a:.2f}")
 
     def get_world_bounding_box(self):
         """

@@ -12,7 +12,7 @@ render_tile_size: 256 # The tile size to use for rendering.
 stacking_offset: 0.1 # Offset for stacking objects ontop of each other
 
 # Config for Rule Generation
-num_rules: 50 # How many random rules should be generated
+num_rules: 8 # How many random rules should be generated
 num_examples: 1 # How many random scenes should be generated per rule
 generate_invalid_examples: False # Generate for every rule an invalid example which doesn't fulfill the given rule
 num_invalid_examples: 1 # How many invalid scenes should be generated per rule
@@ -31,3 +31,6 @@ collision_margin: 0.0 # Margin to extend the bounding boxes of objects during th
 touching_margin: 0.01 # Margin for placing objects with the touching interaction
 ray_interpolation: 10 # Interpolation steps for casting the rays, defines the amount of interpolated rays between the actual points defined by the vertices of the object
 los_threshold: 0.20 # Threshold for line of sight
+
+# Debugging
+debug_printing: False

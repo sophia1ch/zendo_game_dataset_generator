@@ -1,5 +1,6 @@
 import sys, json
 
+DEBUG_PRINTING = False
 
 def extract_args(input_argv=None):
     """
@@ -52,3 +53,13 @@ def read_properties_json(file_path):
         size_mapping[k] = v
 
     return object_mapping, color_name_to_rgba, size_mapping
+
+
+def debug(msg):
+    """
+    Prints a debug message only if args.debug_printing is True.
+
+    :param msg: The message to print.
+    """
+    if DEBUG_PRINTING:
+        print(msg)
