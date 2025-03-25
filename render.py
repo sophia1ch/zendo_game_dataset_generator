@@ -6,6 +6,7 @@ from rules.rules import generate_rule, generate_prolog_structure
 import time
 import csv
 import multiprocessing
+from multiprocessing import get_context
 from zendo_objects import *
 from generate import generate_structure
 
@@ -143,7 +144,7 @@ def threading_prolog_query(args):
     """
 
     # Start a thread to time it
-    pool = multiprocessing.Pool(processes=1)
+    pool = get_context("fork").Pool(processes=1)
     result_async = pool.apply_async(generate_prolog_structure,
                                     args=args)
 
@@ -183,6 +184,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
         return False
 
     i = 0
+    j = 0
     while i < num_examples:
         structure = scenes[i]
         scene_name = f"{rule_idx}_{i}"
@@ -222,6 +224,10 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             # If not possible to generate in blender, generate a new structure with prolog and try again
             print(f"Error in scene generation: {e}")
             scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
+            j += 1
+            if j >= args.resolve_attempts:
+                print(f"Timeout in resolve of structure dependencies: {e}")
+                return False
     return True
 
 
