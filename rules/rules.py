@@ -1,6 +1,7 @@
 import sys, os, random, json, re
 from dataclasses import dataclass, field
 from pyswip import Prolog
+from utils import debug
 
 
 @dataclass
@@ -269,15 +270,15 @@ def print_rules(rules: Rules):
     """
 
     for placeholder_identifier, placeholder in rules.placeholders.items():
-        print(placeholder_identifier)
+        debug(placeholder_identifier)
         for placeholder_value, placeholder_templates in placeholder.categories.items():
             tabs_str = "\t"
             if placeholder_value != "":
-                print(f"{tabs_str}{placeholder_value}")
+                debug(f"{tabs_str}{placeholder_value}")
                 tabs_str += "\t"
 
             for template in placeholder_templates:
-                print(f"{tabs_str}{template.template}")
+                debug(f"{tabs_str}{template.template}")
 
 
 def template_from_text(rules: Rules, text: str, placeholders_naked: bool = True) -> PlaceholderTemplate:
@@ -395,7 +396,7 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
 
     if generator.print_tree:
         tabs_string = '\t' * generator.depth
-        print(f"{tabs_string}{template.template}")
+        debug(f"{tabs_string}{template.template}")
 
     shape_replacements = []
     # NOTE(kilian): Pre generate all shape placeholders such that orientation restrictions can be applied
@@ -435,8 +436,7 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
                     assert (len(orientation_templates) == 1)
                     allowed_orientations.append(orientation_templates[0])
                 else:
-                    print(
-                        f"Warning: ORIENTATION '{orientation_string}' drawn SHAPE {shape_replacement.template} doesn't exist.")
+                    debug(f"Warning: ORIENTATION '{orientation_string}' drawn SHAPE {shape_replacement.template} doesn't exist.")
         return allowed_orientations
 
     next_shape_index = 0
@@ -446,7 +446,7 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
     for i, token in enumerate(template.tokens):
         if token.is_placeholder:
             if generator.print_tree:
-                print(f"{tabs_string}-> [{token_placeholder_count}] {token.string}")
+                debug(f"{tabs_string}-> [{token_placeholder_count}] {token.string}")
             if token.string == "SHAPE":
                 replacement = shape_replacements[next_shape_index]
                 if isinstance(replacement, PlaceholderTemplate):
@@ -513,7 +513,7 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
     for i, token in enumerate(template.tokens):
         if parser.print_tree:
             tabs_string = '\t' * parser.depth
-            print(f"{tabs_string}[{i}] '{token.string}': '{remaining_rule}'")
+            debug(f"{tabs_string}[{i}] '{token.string}': '{remaining_rule}'")
         if token.is_placeholder:
             token_placeholder = parser.rules.placeholders[token.string]
 
@@ -587,7 +587,7 @@ def print_rule_nodes(root: RuleNode):
         new_nodes = []
         i = 0
         for (num, node) in nodes:
-            print(depth, num, node.template.template)
+            debug(f"{depth} {num} {node.template.template}")
             for c in node.children:
                 new_nodes.append((i, c))
             i += 1
@@ -632,8 +632,7 @@ def rule_to_prolog(root: RuleNode) -> tuple[str, str]:
                 elif node.template.placeholder_id == "INTERACTION":
                     ors[-1][-1].interaction.append(child.template.template)
                 else:
-                    print(
-                        f"ERROR: Unexpected template identifier '{node.template.placeholder_id}' with no prolog data.")
+                    debug(f"ERROR: Unexpected template identifier '{node.template.placeholder_id}' with no prolog data.")
             else:
                 match child.template.placeholder_id:
                     case "INTERACTION":
@@ -756,6 +755,6 @@ if __name__ == "__main__":
     r1 = generate_prolog_structure(1, query)
     r2 = generate_prolog_structure(1, n_query)
 
-    print(rule)
-    print(query, "\n", r1)
-    print(n_query, "\n", r2)
+    debug(f"{rule}")
+    debug(f"{query} \n {r1}")
+    debug(f"{n_query} \n {r2}")

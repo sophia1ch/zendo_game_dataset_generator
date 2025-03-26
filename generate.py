@@ -2,6 +2,7 @@ import ast
 import re
 from collections import defaultdict, deque
 from math import cos, sin, pi
+from utils import debug
 
 import zendo_objects
 from structure import *
@@ -286,7 +287,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
             attempts = 0
             while True:
                 if attempts >= placement_attempts:
-                    print(f"Exceeded maximum placement attempts!")
+                    debug(f"Exceeded maximum placement attempts!")
                     integrity = False
                     break
                 # Try to place the object at a random position
@@ -301,14 +302,13 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                     break
                 else:
                     attempts += 1
-                    print(
-                        f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
+                    debug(f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
         else:
             relation_type, target = generate_relation(instruction)
             attempts = 0
             while True:
                 if attempts >= placement_attempts:
-                    print(f"Exceeded maximum placement attempts!")
+                    debug(f"Exceeded maximum placement attempts!")
                     integrity = False
                     break
 
@@ -329,8 +329,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                         break
                     else:
                         attempts += 1
-                        print(
-                            f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
+                        debug(f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
 
                 elif relation_type == 'pointing':
                     pos = get_random_position(anchor=anchor_position, radius=placement_radius)
@@ -342,8 +341,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                         break
                     else:
                         attempts += 1
-                        print(
-                            f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
+                        debug(f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!")
 
                 elif relation_type == 'on_top_of':
                     on_top(current_object, target, margin=touching_margin)
@@ -351,7 +349,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
 
     # Scene integrity check
 
-    print("Integrity check")
+    debug("Integrity check")
     for instruction in related_objects:
         # Check pointing
         current_object = zendo_objects.get_object(instruction['id'])
@@ -359,9 +357,11 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
             continue
         pointing_objects = check_pointing(current_object)
         colliding_objects = check_collision(current_object)
-        print(
+        debug(
             f"{current_object.get_namestring()} pointing towards {[o.get_namestring() for o in pointing_objects]}!\n"
-            f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!")
+            f"{current_object.get_namestring()} colliding with {[o.get_namestring() for o in colliding_objects]}!"
+        )
+
         if instruction['action'].split('(')[0] == 'pointing':
             if len(pointing_objects) != 1:
                 integrity = False
@@ -372,7 +372,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
     if check_scene_occlusion(los_threshold):
         integrity = False
 
-    print("Integrity:", integrity)
+    debug(f"Integrity: {integrity}")
 
     if not integrity:
         for obj in collection.objects:
@@ -421,7 +421,7 @@ def check_scene_occlusion(threshold):
             ):
                 blocked += 1
 
-        print(f"Actual threshold {obj.name}: {blocked / total:.2f}")
+        debug(f"Actual threshold {obj.name}: {blocked / total:.2f}")
         if blocked / total >= threshold:
             return True
     return False

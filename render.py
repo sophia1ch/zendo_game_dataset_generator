@@ -9,6 +9,8 @@ import multiprocessing
 from multiprocessing import get_context
 from zendo_objects import *
 from generate import generate_structure
+import utils
+from utils import debug
 
 
 def render(args, output_path, name):
@@ -67,10 +69,10 @@ def render(args, output_path, name):
             device.use = False
 
     # Debug render devices being used
-    # print(f"Using compute_device_type: {preferences.compute_device_type}")
-    # print(f"Render device set to: {bpy.context.scene.cycles.device}")
-    # for device in preferences.devices:
-    # print(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
+    debug(f"Using compute_device_type: {preferences.compute_device_type}")
+    debug(f"Render device set to: {bpy.context.scene.cycles.device}")
+    for device in preferences.devices:
+        debug(f"Device: {device.name}, Type: {device.type}, Active: {device.use}")
 
     #######################################################
     # Render
@@ -88,7 +90,7 @@ def render(args, output_path, name):
     bpy.context.scene.render.resolution_y = args.height
     bpy.context.scene.render.resolution_percentage = 100
 
-    print("Saving output image to:", bpy.context.scene.render.filepath)
+    debug(f"Saving output image to: {bpy.context.scene.render.filepath}")
 
     # Redirect output to log file
     logfile = 'blender_render.log'
@@ -99,7 +101,13 @@ def render(args, output_path, name):
     fd = os.open(logfile, os.O_WRONLY)
 
     # Do the rendering
+    render_start = time.time()
     bpy.ops.render.render(write_still=True)
+    render_end = time.time()
+
+    # Log render time
+    render_duration = render_end - render_start
+    print(f"Render time: {render_duration:.4f} seconds")
 
     # Disable output redirection
     os.close(fd)
@@ -109,6 +117,8 @@ def render(args, output_path, name):
     if args.save_blendfile:
         bpy.context.preferences.filepaths.save_version = 0
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.output_dir, output_path, f"{name}.blend"))
+
+    return render_duration
 
 
 def get_all_scene_objects():
@@ -151,7 +161,7 @@ def threading_prolog_query(args):
     try:
         result = result_async.get(timeout=5)
     except multiprocessing.TimeoutError:
-        print(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
+        debug(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
         pool.close()
         return None
     else:
@@ -178,10 +188,13 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
     :return: True if scenes were successfully generated, False otherwise.
     """
 
+    total_start = time.time()
+    render_time_total = 0.0
+
     # Get the scenes from the prolog query. Need to thread it to get a timeout if it takes to long
     scenes = threading_prolog_query(args=(num_examples, query, args.rules_prolog_file))
     if scenes is None:
-        return False
+        return False, 0.0, 0.0
 
     i = 0
     j = 0
@@ -195,7 +208,8 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
         try:
             # Now generate it in blender
             generate_structure(args, structure, collection)
-            render(args, str(rule_idx), scene_name)
+            render_time = render(args, str(rule_idx), scene_name)
+            render_time_total += render_time
 
             # Buffer scene objects for writing to CSV
             scene_objects = ZendoObject.instances
@@ -222,13 +236,18 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
 
         except Exception as e:
             # If not possible to generate in blender, generate a new structure with prolog and try again
-            print(f"Error in scene generation: {e}")
+            debug(f"Error in scene generation: {e}")
             scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
             j += 1
             if j >= args.resolve_attempts:
-                print(f"Timeout in resolve of structure dependencies: {e}")
-                return False
-    return True
+                debug(f"Timeout in resolve of structure dependencies: {e}")
+                return False, 0.0, 0.0
+
+    total_end = time.time()
+    total_duration = total_end - total_start
+    cpu_time = total_duration - render_time_total
+
+    return True, render_time_total, cpu_time
 
 
 def main(args):
@@ -260,31 +279,67 @@ def main(args):
 
     # Write CSV header
     csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+    os.makedirs(args.output_dir, exist_ok=True)
     with open(csv_file_path, "w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name",
                              "bounding_box_min_x", "bounding_box_min_y", "bounding_box_min_z",
                              "bounding_box_max_x", "bounding_box_max_y", "bounding_box_max_z",
                              "world_pos_x", "world_pos_y", "world_pos_z"])
+
+    total_gpu_time = 0.0
+    total_cpu_time = 0.0
+    total_failed_time = 0.0
+    failed_attempts = 0
+
     r = 0
+
     while r < num_rules:
+        print(f"Generating rule {r + 1}/{num_rules}...")
         # get rule in string form and query, negative query in prolog form
         rule, query, n_query = generate_rule(rules_json_file)
 
         collection = bpy.data.collections.new("Structure")
         bpy.context.scene.collection.children.link(collection)
 
-        generated_successfully = generate_blender_examples(args, collection, num_examples, r, rule, query, False)
+        attempt_start = time.time()
+        generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, r,
+                                                                                  rule, query, False)
+        attempt_end = time.time()
+
         # If result is not true, then prolog query took to long, therefore try again
         if not generated_successfully:
+            total_failed_time += (attempt_end - attempt_start)
+            failed_attempts += 1
             continue
+
+        total_gpu_time += render_time
+        total_cpu_time += cpu_time
 
         # If bool is set for generating also scenes which doesn't fulfill the rule
         if generate_invalid_examples:
-            generate_blender_examples(args, collection, num_invalid_examples, r, rule, n_query, True)
+            inv_start = time.time()
+            success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
+                                                                                 r, rule, n_query, True)
+            inv_end = time.time()
+
+            if not success_invalid:
+                total_failed_time += (inv_end - inv_start)
+                failed_attempts += 1
+            else:
+                total_gpu_time += render_time_invalid
+                total_cpu_time += cpu_time_invalid
+
         r += 1
 
-    print(f"Time to complete: {time.time() - start_time}")
+    print(f"\nDataset generation complete.")
+
+    print(f"\nTime to complete: {(time.time() - start_time):.2f}s")
+    print(f"Total GPU time: {total_gpu_time:.2f}s")
+    print(f"Total CPU time: {total_cpu_time:.2f}s")
+    print(f"Total failed attempts time: {total_failed_time:.2f}s")
+    print(f"Total failed attempts: {failed_attempts}")
+    print(f"Total execution iterations: {num_rules}")
 
 
 if __name__ == '__main__':
@@ -304,4 +359,7 @@ if __name__ == '__main__':
         args = yaml.safe_load(f.read())  # load the config file
 
     args = Namespace(**args)
+
+    utils.DEBUG_PRINTING = args.debug_printing
+
     main(args)

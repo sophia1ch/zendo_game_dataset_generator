@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 from torchvision.io import read_image
 import numpy as np
+from utils import debug
 
 
 class ZendoImageDataset(Dataset):
@@ -123,7 +124,7 @@ def custom_collate(batch):
 
     # Pad labels to the maximum length in the batch
     max_length = max(len(img_labels) for img_labels in batch_obj_labels)
-    print("max length: ", max_length)
+    debug(f"max length: {max_length}")
     padded_obj_labels = []
 
     for img_labels in batch_obj_labels:
@@ -171,6 +172,6 @@ if __name__ == '__main__':
     img = img.permute(1, 2, 0).numpy()
     rule_label = train_rule_labels[0]
     obj_label = train_obj_labels[0]
-    print(f"Label: {rule_label}, {obj_label}")
+    debug(f"Label: {rule_label} {obj_label}")
     plt.imshow(img)
     plt.show()
