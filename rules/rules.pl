@@ -24,7 +24,7 @@ interaction(on_top_of(_)).
 %interaction(inside(_)).
 
 max_items(7).
-
+min_items(1).
 
 
 %%% Generating %%%
@@ -69,7 +69,8 @@ generate_invalid_structure(Checks, Structure) :-
 
 generate_structure(Structure) :-
     max_items(Max),
-    random_between(1, Max, N),
+    min_items(Min),
+    random_between(Min, Max, N),
     repeat,
     (generate_items(N, N, Structure) -> !; fail).
 

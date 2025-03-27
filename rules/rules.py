@@ -751,10 +751,13 @@ if __name__ == "__main__":
     Main script execution to generate a rule and corresponding Prolog structures.
     """
 
-    rule, query, n_query = generate_rule()
-    r1 = generate_prolog_structure(1, query)
-    r2 = generate_prolog_structure(1, n_query)
+    for _ in range(100):
+        rule, query, n_query = generate_rule()
+        r1 = generate_prolog_structure(1, query)
+        r2 = generate_prolog_structure(1, n_query)
 
-    debug(f"{rule}")
-    debug(f"{query} \n {r1}")
-    debug(f"{n_query} \n {r2}")
+        print(len(r1[0]), r1)
+
+        # print(f"{rule}")
+        # print(f"{query} \n {r1}")
+        # print(f"{n_query} \n {r2}")
