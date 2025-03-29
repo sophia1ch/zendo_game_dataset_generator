@@ -70,13 +70,13 @@ class TemplateGenerator:
 
 # MARK: Exceptions
 
-def raise_unrecognized_placeholder(placeholder_id: str, recognized_placeholders):
+def raise_unrecognized_placeholder(placeholder_id: str, recognized_placeholders: set[str]):
     """
-    Raises an exception if a placeholder ID is not recognized within the set of allowed placeholders.
+    Raises an exception saying that placeholder_id is not recognized because it is not part of recognized_placeholders.
 
     :param placeholder_id: The placeholder identifier that is not recognized.
-    :param recognized_placeholders: A collection of valid placeholder identifiers.
-    :raises Exception: If the placeholder_id is not found in the recognized_placeholders.
+    :param recognized_placeholders: A set of valid placeholder identifiers.
+    :raises Exception: That placeholder_id is not found in the recognized_placeholders.
     """
 
     recognized_placeholders_string = ", ".join(list(recognized_placeholders))
@@ -94,8 +94,8 @@ def make_placeholder_template(placeholder_id: str, template_text: str, prolog_li
 
     :param placeholder_id: The identifier for the placeholder template.
     :param template_text: The text containing placeholders enclosed in curly braces.
-    :param prolog_list: A list of Prolog statements associated with the template.
-    :param orientations: A list of possible orientations for the placeholder.
+    :param prolog_list: The equivalent prolog identifier of this placeholder template in a list. Should contain a single or no element.
+    :param orientations: A list of possible orientations for the placeholder template. Only applicable if of type SHAPE.
     :return: A PlaceholderTemplate object with tokenized text and extracted placeholders.
     """
 
@@ -319,6 +319,7 @@ def random_placeholder_template(rules: Rules, placeholder_id: str, two_steps: bo
     :param rules: A Rules object containing placeholder definitions.
     :param placeholder_id: The identifier of the placeholder category to select from.
     :param two_steps: If True, selects a category first, then a template from that category.
+    If False, selects from the templates of all categories uniformly.
     :param used_templates: A dictionary tracking already used templates to avoid repetition.
     :param allowed_orientations: A list of specific orientation templates to be considered, if applicable.
     :param no_interaction_when_operator_used: If True, avoids interaction templates if an operator was used previously.
@@ -496,7 +497,6 @@ def random_rule(rules: Rules, starting_template: PlaceholderTemplate, two_random
 
 # MARK: Parsing
 
-# NOTE(kilian): Returns a rule node or a reason why the template does not match.
 def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTemplate) -> tuple[RuleNode, str] | str:
     """
     Matches a given rule text against a template recursively and constructs a corresponding RuleNode tree.
@@ -505,7 +505,7 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
     :param rule: The rule text to be parsed.
     :param template: The PlaceholderTemplate against which the rule text is matched.
     :return: A tuple containing the parsed RuleNode and the remaining unmatched rule text,
-             or an error message if parsing fails.
+             or an error message specifying why the template does not match.
     """
 
     remaining_rule = rule
@@ -538,9 +538,6 @@ def parse_rule_text_match(parser: RuleParser, rule: str, template: PlaceholderTe
                         longest_match_node = parse_match
                         longest_match_length = match_length
                         longest_match_remaining_rule = new_remaining_rule
-                    # TODO(kilian): Prevent this from happening somewhere else?
-                    # if test_template.template != "":
-                    #    nodes.append(parse_match)
 
             if not longest_match_node:
                 return "ERROR"
@@ -675,10 +672,7 @@ def rule_to_prolog(root: RuleNode) -> tuple[str, str]:
         else:
             anded_call_strings.append(f"and([{', '.join(call_strings)}])")
 
-    # for orx in anded_call_strings:
-    #    print(orx)
-    ored_call_string = f"or([{', '.join(anded_call_strings)}])" if len(anded_call_strings) != 1 else anded_call_strings[
-        0]
+    ored_call_string = f"or([{', '.join(anded_call_strings)}])" if len(anded_call_strings) != 1 else anded_call_strings[0]
     return f"generate_valid_structure([{ored_call_string}], Structure)", f"generate_invalid_structure([{ored_call_string}], Structure)"
 
 
