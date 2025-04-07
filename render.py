@@ -1,5 +1,7 @@
 import platform
 import sys, argparse
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argparse import Namespace
 import yaml
 from rules.rules import generate_rule, generate_prolog_structure
@@ -11,6 +13,9 @@ from zendo_objects import *
 from generate import generate_structure
 import utils
 from utils import debug
+import shutil
+
+sys.argv = sys.argv[:1]
 
 
 def render(args, output_path, name):
@@ -159,7 +164,7 @@ def threading_prolog_query(args):
                                     args=args)
 
     try:
-        result = result_async.get(timeout=5)
+        result = result_async.get(timeout=6)
     except multiprocessing.TimeoutError:
         debug(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
         pool.close()
@@ -193,41 +198,62 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
 
     # Get the scenes from the prolog query. Need to thread it to get a timeout if it takes to long
     scenes = threading_prolog_query(args=(num_examples, query, args.rules_prolog_file))
+    print(f"Scenes: {scenes}")
+    print(f"Query: {query}")
     if scenes is None:
         return False, 0.0, 0.0
 
+    rule_output_dir = os.path.join(args.output_dir, f"{rule_idx}")
+    os.makedirs(rule_output_dir, exist_ok=True)
+
+    rule_name = f"query_{rule_idx}"
+    if negative:
+        rule_name = f"query_{rule_idx}_n"
+    query_file_path = os.path.join(rule_output_dir, rule_name + ".txt")
+    with open(query_file_path, "w") as f:
+        f.write(query)
+
+    seen_structures = set()
     i = 0
     j = 0
     while i < num_examples:
         structure = scenes[i]
         scene_name = f"{rule_idx}_{i}"
-        if negative:
-            scene_name = f"{rule_idx}_{i}_n"
-        img_path = os.path.join(args.output_dir, f"{rule_idx}", scene_name + ".png")
+
+        # 🔍 Ensure uniqueness of structures
+        structure_hashable = frozenset(tuple(sorted(str(x) for x in structure)))
+        if structure_hashable in seen_structures:
+            print(f"Duplicate structure detected at index {i}, regenerating...")
+            scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
+            j += 1
+            if j >= args.resolve_attempts:
+                print("Max retries hit while avoiding duplicate structures.")
+                return False, 0.0, 0.0
+            continue
+        seen_structures.add(structure_hashable)
+
+        scene_name = f"{rule_idx}_{i}" if not negative else f"{rule_idx}_{i}_n"
+        img_path = os.path.join(rule_output_dir, scene_name + ".png")
 
         try:
-            # Now generate it in blender
             generate_structure(args, structure, collection)
             render_time = render(args, str(rule_idx), scene_name)
             render_time_total += render_time
 
-            # Buffer scene objects for writing to CSV
             scene_objects = ZendoObject.instances
-
             csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
 
             with open(csv_file_path, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
-
                 for obj in scene_objects:
                     min_bb, max_bb = obj.get_world_bounding_box()
                     world_pos = obj.get_position()
 
-                    csv_writer.writerow([scene_name, img_path, rule, query, obj.name,
+                    csv_writer.writerow([scene_name, img_path, rule, query, obj.name, obj.grounded,
+                                         obj.touching, obj.rays, obj.pointing,
                                          min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
                                          world_pos.x, world_pos.y, world_pos.z])
 
-            # TODO: Check if this really is a fix for the generation of multiple scenes
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
@@ -235,7 +261,6 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             i += 1
 
         except Exception as e:
-            # If not possible to generate in blender, generate a new structure with prolog and try again
             debug(f"Error in scene generation: {e}")
             scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
             j += 1
@@ -278,14 +303,16 @@ def main(args):
     generate_invalid_examples = args.generate_invalid_examples
 
     # Write CSV header
-    csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+    if os.path.exists(args.output_dir):
+        shutil.rmtree(args.output_dir)
     os.makedirs(args.output_dir, exist_ok=True)
+    csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
     with open(csv_file_path, "w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name",
-                             "bounding_box_min_x", "bounding_box_min_y", "bounding_box_min_z",
-                             "bounding_box_max_x", "bounding_box_max_y", "bounding_box_max_z",
-                             "world_pos_x", "world_pos_y", "world_pos_z"])
+        csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name", "grounded",
+                             "touching", "rays", "pointing", "bounding_box_min_x", "bounding_box_min_y",
+                             "bounding_box_min_z", "bounding_box_max_x", "bounding_box_max_y",
+                             "bounding_box_max_z", "world_pos_x", "world_pos_y", "world_pos_z"])
 
     total_gpu_time = 0.0
     total_cpu_time = 0.0
@@ -298,7 +325,9 @@ def main(args):
         print(f"Generating rule {r + 1}/{num_rules}...")
         # get rule in string form and query, negative query in prolog form
         rule, query, n_query = generate_rule(rules_json_file)
-
+        print(f"Rule: {rule}")
+        print(f"Query: {query}")
+        print(f"Negative Query: {n_query}")
         collection = bpy.data.collections.new("Structure")
         bpy.context.scene.collection.children.link(collection)
 

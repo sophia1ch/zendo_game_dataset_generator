@@ -60,7 +60,7 @@ generate_valid_structure(Checks, Structure) :-
 %    ).
 
 
-% Generate repeatedly until a structure doesn`t fulfills the checks
+% Generate repeatedly until a structure doesnt fulfills the checks
 generate_invalid_structure(Checks, Structure) :-
     repeat,
     generate_structure(Structure),
@@ -207,7 +207,7 @@ interaction_constraint_check(Structure) :-
                     findall(SourceId, member(item(SourceId, _, _, _, on_top_of(TargetId)), Structure), Sources),
                     length(Sources, Count),
                     % Change to 2, if you want to activate the two objects on top of a flat block rule
-                    Count =< 1
+                    Count =< 2
                 );
                 (
                     findall(SourceId, member(item(SourceId, _, _, _, on_top_of(TargetId)), Structure), Sources),

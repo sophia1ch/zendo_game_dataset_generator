@@ -32,7 +32,7 @@ class ZendoObject:
         bpy.ops.wm.append(filename=filename)
         # Rename and set object
         # self.name = '%s_%d' % (name, get_object_count(name))
-        unique_name = f"{idx}_{shape}"
+        unique_name = f"{idx}_{shape}_{color}_{pose}"
         bpy.data.objects[shape].name = unique_name
         self.obj = bpy.data.objects[unique_name]
         self.material = self.obj.data.materials[0]
