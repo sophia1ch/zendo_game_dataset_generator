@@ -2,6 +2,7 @@ import sys, os, random, json, re
 from dataclasses import dataclass, field
 from pyswip import Prolog
 from utils import debug
+from hashlib import sha256
 
 
 @dataclass
@@ -729,13 +730,37 @@ def generate_prolog_structure(num_examples, query, prolog_file='rules/rules.pl')
     prolog.consult(prolog_file)
 
     # Execute the random queries
+    seen_structures = set()
     results = []
-    # Generate num_example structure arrays per rule
-    for _ in range(num_examples):
-        prolog_query = prolog.query(query)
-        for i, szene in enumerate(prolog_query):
-            structure = szene["Structure"]
-            results.append(structure)
+
+    def structure_to_hashable(structure):
+        """Convert a Prolog structure to a JSON-serializable hashable string."""
+        try:
+            return sha256(json.dumps(structure, sort_keys=True).encode()).hexdigest()
+        except Exception:
+            return str(structure)  # fallback
+
+    attempts = 0
+    max_attempts = num_examples * 20  # to avoid infinite loops
+
+    while len(results) < num_examples and attempts < max_attempts:
+        attempts += 1
+        try:
+            prolog_query = prolog.query(query)
+            for i, szene in enumerate(prolog_query):
+                structure = szene["Structure"]
+                hash_key = structure_to_hashable(structure)
+
+                if hash_key not in seen_structures:
+                    seen_structures.add(hash_key)
+                    results.append(structure)
+
+        except Exception as e:
+            print(f"Prolog query failed: {e}")
+            continue
+
+    if len(results) < num_examples:
+        print(f"⚠️ Warning: Only {len(results)} unique structures could be generated after {attempts} attempts.")
 
     return results
 

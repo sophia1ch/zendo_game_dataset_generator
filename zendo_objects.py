@@ -85,7 +85,10 @@ class ZendoObject:
         :param obj: The ZendoObject instance that is touching this object.
         """
 
-        self.touching[face] = obj
+        if obj is None:
+            self.touching[face] = obj
+        else:
+            self.touching[face] = obj.name
 
     def get_touching(self):
         """

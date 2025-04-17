@@ -192,8 +192,8 @@ interaction_constraint_check(Structure) :-
                  AnotherId \= SourceId,
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
-                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = vertical);
-                  (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = upright)))
+                  (TargetShape = pyramid, TargetOrientation = vertical, SourceOrientation = upright);
+                  (TargetShape = pyramid, TargetOrientation = upright, TargetOrientation = SourceOrientation)))
             )
         )
     ),

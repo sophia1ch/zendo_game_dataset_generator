@@ -14,6 +14,7 @@ from generate import generate_structure
 import utils
 from utils import debug
 import shutil
+import json
 
 sys.argv = sys.argv[:1]
 
@@ -181,7 +182,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
 
     This function queries Prolog to generate scene structures, then constructs
     the corresponding objects in Blender, renders the scene, and saves the data
-    to a CSV file.
+    to a CSV file **only once all examples for the rule have been successfully generated**.
 
     :param args: Configuration arguments for scene generation and rendering.
     :param collection: The Blender collection to store generated objects.
@@ -196,43 +197,42 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
     total_start = time.time()
     render_time_total = 0.0
 
-    # Get the scenes from the prolog query. Need to thread it to get a timeout if it takes to long
-    scenes = threading_prolog_query(args=(num_examples, query, args.rules_prolog_file))
-    print(f"Scenes: {scenes}")
-    print(f"Query: {query}")
-    if scenes is None:
-        return False, 0.0, 0.0
-
     rule_output_dir = os.path.join(args.output_dir, f"{rule_idx}")
     os.makedirs(rule_output_dir, exist_ok=True)
 
-    rule_name = f"query_{rule_idx}"
-    if negative:
-        rule_name = f"query_{rule_idx}_n"
+    rule_name = f"query_{rule_idx}_n" if negative else f"query_{rule_idx}"
     query_file_path = os.path.join(rule_output_dir, rule_name + ".txt")
     with open(query_file_path, "w") as f:
         f.write(query)
 
+    examples_data = []
     seen_structures = set()
     i = 0
-    j = 0
-    while i < num_examples:
-        structure = scenes[i]
-        scene_name = f"{rule_idx}_{i}"
+    retry_attempts = 0
+    max_total_retries = args.resolve_attempts * num_examples
 
-        # 🔍 Ensure uniqueness of structures
-        structure_hashable = frozenset(tuple(sorted(str(x) for x in structure)))
-        if structure_hashable in seen_structures:
-            print(f"Duplicate structure detected at index {i}, regenerating...")
-            scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
-            j += 1
-            if j >= args.resolve_attempts:
-                print("Max retries hit while avoiding duplicate structures.")
+    while i < num_examples:
+        # Generate structure
+        scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file))
+        if not scenes:
+            retry_attempts += 1
+            if retry_attempts >= max_total_retries:
+                print(f"❌ Failed to generate scene {i} after too many retries.")
                 return False, 0.0, 0.0
             continue
-        seen_structures.add(structure_hashable)
 
-        scene_name = f"{rule_idx}_{i}" if not negative else f"{rule_idx}_{i}_n"
+        structure = scenes[0]
+        structure_hashable = frozenset(tuple(sorted(str(x) for x in structure)))
+        if structure_hashable in seen_structures:
+            print(f"🔁 Duplicate structure detected for index {i}, regenerating...")
+            retry_attempts += 1
+            if retry_attempts >= max_total_retries:
+                print(f"❌ Too many retries for scene {i}.")
+                return False, 0.0, 0.0
+            continue
+
+        seen_structures.add(structure_hashable)
+        scene_name = f"{rule_idx}_{i}_n" if negative else f"{rule_idx}_{i}"
         img_path = os.path.join(rule_output_dir, scene_name + ".png")
 
         try:
@@ -241,37 +241,43 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             render_time_total += render_time
 
             scene_objects = ZendoObject.instances
-            csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+            for obj in scene_objects:
+                min_bb, max_bb = obj.get_world_bounding_box()
+                world_pos = obj.get_position()
 
-            with open(csv_file_path, "a", newline="") as csvfile:
-                csv_writer = csv.writer(csvfile)
-                for obj in scene_objects:
-                    min_bb, max_bb = obj.get_world_bounding_box()
-                    world_pos = obj.get_position()
-
-                    csv_writer.writerow([scene_name, img_path, rule, query, obj.name, obj.grounded,
-                                         obj.touching, obj.rays, obj.pointing,
-                                         min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
-                                         world_pos.x, world_pos.y, world_pos.z])
+                examples_data.append([
+                    scene_name, img_path, rule, query, obj.name, obj.grounded,
+                    obj.touching, obj.rays, obj.pointing,
+                    min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
+                    world_pos.x, world_pos.y, world_pos.z
+                ])
 
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
 
+            print(f"✅ Successfully generated scene {scene_name}.")
             i += 1
 
         except Exception as e:
-            debug(f"Error in scene generation: {e}")
-            scenes[i] = generate_prolog_structure(1, query, args.rules_prolog_file)[0]
-            j += 1
-            if j >= args.resolve_attempts:
-                debug(f"Timeout in resolve of structure dependencies: {e}")
+            print(f"❌ Exception during scene generation {scene_name}: {e}")
+            retry_attempts += 1
+            if retry_attempts >= max_total_retries:
+                print(f"❌ Too many retries for rule {rule_idx}, aborting.")
                 return False, 0.0, 0.0
 
-    total_end = time.time()
-    total_duration = total_end - total_start
-    cpu_time = total_duration - render_time_total
+            for obj in collection.objects:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            ZendoObject.instances.clear()
 
+    # ✅ Write to CSV only after all scenes are complete
+    csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+    with open(csv_file_path, "a", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerows(examples_data)
+
+    total_end = time.time()
+    cpu_time = total_end - total_start - render_time_total
     return True, render_time_total, cpu_time
 
 

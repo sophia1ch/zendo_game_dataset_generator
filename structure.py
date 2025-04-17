@@ -128,14 +128,14 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
 
 def nested(object_1: ZendoObject, object_2: Pyramid):
     """
-    Nests object_1 inside object_2, specifically for pyramids.
+    Nests object_2 inside object_1, specifically for pyramids.
 
     This function places object_1 inside object_2 by aligning their positions and
     rotations. It ensures that object_1 is positioned correctly within object_2,
     applying an offset to prevent clipping.
 
-    :param object_1: The ZendoObject to be nested inside object_2.
-    :param object_2: The Pyramid object that will contain object_1.
+    :param object_1: The Pyramid object that will contain object_2.
+    :param object_2: The ZendoObject to be nested inside object_1.
     """
 
     # Move the first object inside the second one
@@ -158,12 +158,11 @@ def nested(object_1: ZendoObject, object_2: Pyramid):
     # Move the first object alongside the top vector for offset
     scaled_vector = vector_to_top * 0.4
     object_1.move(scaled_vector)
-
     # Update properties of objects to reflect relation
-    object_2.nested = object_1
-    object_1.nests = object_2
-    object_2.touching["top"] = object_1
-    object_1.touching["bottom"] = object_2
+    object_2.nested = object_1.obj.name
+    object_1.nests = object_2.obj.name
+    object_2.touching["top"] = object_1.obj.name
+    object_1.touching["bottom"] = object_2.obj.name
     # object_1.set_to_ground()
 
 
@@ -233,5 +232,5 @@ def pointing(object_1: ZendoObject, target: ZendoObject):
     object_1.obj.rotation_mode = 'QUATERNION'
     object_1.obj.rotation_quaternion = rotation_quaternion @ object_1.obj.rotation_quaternion
 
-    object_1.pointing = target
+    object_1.pointing = target.obj.name
     bpy.context.view_layer.update()

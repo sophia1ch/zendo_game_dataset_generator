@@ -280,7 +280,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
         current_object = generate_creation(args, instruction, collection)
 
         # randomly rotate the objects in 90 degree steps
-        random_rotation = random.choice([0, 90, 180, 270])
+        random_rotation = random.uniform(0, 360)
         current_object.rotate_z(random_rotation)
 
         if instruction['action'] == 'grounded':
@@ -349,7 +349,6 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
 
     # Scene integrity check
 
-    debug("Integrity check")
     for instruction in related_objects:
         # Check pointing
         current_object = zendo_objects.get_object(instruction['id'])
@@ -419,6 +418,20 @@ def check_scene_occlusion(threshold):
                     and "Ground" not in hit_obj.name
                     and (hit_loc - camera_loc).length < dir_vec.length - 1e-5
             ):
+                aligned = (
+                    abs(hit_obj.location.x - obj.location.x) < 0.1 and
+                    abs(hit_obj.location.y - obj.location.y) < 0.1
+                )
+
+                # One object is above the other
+                obj_above = obj.location.z > hit_obj.location.z
+                hit_above = hit_obj.location.z > obj.location.z
+
+                # If one is above the other AND the lower one is a pyramid → allow
+                if aligned:
+                    if (obj_above and "Pyramid" in hit_obj.name) or (hit_above and "Pyramid" in obj.name):
+                        continue
+
                 blocked += 1
 
         debug(f"Actual threshold {obj.name}: {blocked / total:.2f}")
