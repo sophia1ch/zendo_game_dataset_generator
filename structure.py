@@ -69,6 +69,39 @@ def on_top(object_1: ZendoObject, target: ZendoObject, margin: float = 0.0):
         touching(object_1, target, face='top', margin=margin)
 
 
+def get_restricted_bounds(obj_a, obj_b, direction):
+    """
+    Returns the min and max along `direction` (x or y) of obj_a,
+    but only for vertices whose position along the orthogonal axis
+    falls within obj_b's bounds along that axis.
+    """
+    direction = direction.lower()
+    if direction not in ('x', 'y'):
+        print(f"Invalid direction: {direction}.")
+        raise ValueError("Direction must be 'x' or 'y'.")
+
+    axis_idx = {'x': 0, 'y': 1}
+    move_axis = axis_idx[direction]
+    filter_axis = 1 - move_axis  # 0 if move_axis is 1, 1 if move_axis is 0
+
+    verts_a = [obj_a.matrix_world @ v.co for v in obj_a.data.vertices]
+    verts_b = [obj_b.matrix_world @ v.co for v in obj_b.data.vertices]
+
+    # Bounding range of obj_b along the filter axis
+    b_min = min(v[filter_axis] for v in verts_b)
+    b_max = max(v[filter_axis] for v in verts_b)
+
+    # Filter verts in A where the filter axis lies within B's bounds
+    filtered = [v for v in verts_a if b_min <= v[filter_axis] <= b_max]
+
+    if not filtered:
+        return None, None  # No overlap
+
+    min_a = min(v[move_axis] for v in filtered)
+    max_a = max(v[move_axis] for v in filtered)
+    return min_a, max_a
+
+
 def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', margin: float = 0.0):
     """
     Aligns object_1 against object_2 along the specified face.
@@ -111,19 +144,37 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
     # Get the axis index ('X' = 0, 'Y' = 1, 'Z' = 2)
     axis_index = 'XYZ'.index(axis.upper())
 
-    # Calculate the offset to align the objects
-    if direction > 0:
-        offset = obj2_max[axis_index] - obj1_min[axis_index]
-        offset += margin
+    if axis_index == 2:
+        # Calculate the offset to align the objects
+        if direction > 0:
+            offset = obj2_max[axis_index] - obj1_min[axis_index]
+            offset += margin
+        else:
+            offset = obj2_min[axis_index] - obj1_max[axis_index]
+            offset -= margin
+        # Move object_1 to touch object_2
+        object_1.obj.location[axis_index] += offset
     else:
-        offset = obj2_min[axis_index] - obj1_max[axis_index]
-        offset -= margin
-
-    # Move object_1 to touch object_2
-    object_1.obj.location[axis_index] += offset
+        min_1, max_1 = get_restricted_bounds(object_1.obj, object_2.obj, axis)
+        min_2, max_2 = get_restricted_bounds(object_2.obj, object_1.obj, axis)
+        # Calculate the offset to align the objects
+        if direction > 0:
+            offset = max_2 - min_1
+            offset += margin
+        else:
+            offset = min_2 - max_1
+            offset -= margin
+        # Move object_1 to touch object_2
+        object_1.obj.location[axis_index] += offset
+        if offset is None:
+           raise ValueError(
+            f"Offset could not be computed for {object_1.obj.name} and {object_2.obj.name} "
+           ) 
 
     if face == "top":
         object_1.grounded = False
+        object_1.set_touching("bottom", object_2.obj)
+        object_2.set_touching("top", object_1.obj)
 
 
 def nested(object_1: ZendoObject, object_2: Pyramid):
@@ -161,8 +212,8 @@ def nested(object_1: ZendoObject, object_2: Pyramid):
     # Update properties of objects to reflect relation
     object_2.nested = object_1.obj.name
     object_1.nests = object_2.obj.name
-    object_2.touching["top"] = object_1.obj.name
-    object_1.touching["bottom"] = object_2.obj.name
+    object_2.set_touching("top", object_1.obj)
+    object_1.set_touching("bottom", object_2.obj)
     # object_1.set_to_ground()
 
 

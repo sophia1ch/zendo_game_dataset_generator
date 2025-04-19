@@ -24,15 +24,17 @@ placement_radius: 9 # Radius for placement of  all objects
 anchor_position: [0, 0, 0] # Center position of object placement radius
 random_face_choice: True # Choose random faces when resolving relations
 random_object_rotation: False # Randomly rotates the objects. WARNING: can lead to unresolvable scenes
-resolve_attempts: 5 # Number of attempts to try to resolve the prolog structure dependencies
+resolve_attempts: 10 # Number of attempts to try to resolve the prolog structure dependencies
 placement_attempts: 10 # Number of attempts to try to place an object before regenerating the whole scene
 generation_attempts: 10 # Number of attempts to try to generate the whole scene before determining the scene unsolvable
 collision_margin: 0.0 # Margin to extend the bounding boxes of objects during the collision check to ensure proper separation when placing objects
-touching_margin: 0.01 # Margin for placing objects with the touching interaction
+touching_margin: 0.0 # Margin for placing objects with the touching interaction
 ray_interpolation: 10 # Interpolation steps for casting the rays, defines the amount of interpolated rays between the actual points defined by the vertices of the object
 los_threshold: 0.20 # Threshold for line of sight
-rule: 'A structure must contain at least 1 wedge pieces on top of another pyramid piece.' # Specific rule to generate images for
-query: 'generate_valid_structure([at_least_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)' # Specific query to generate images for
+rule: 'A structure must contain an even number of flat pieces touching a upright piece.'
+query: 'generate_valid_structure([even_number_of_interaction(flat, upright, touching, Structure)], Structure)'
+query_n: 'generate_invalid_structure([even_number_of_interaction(flat, upright, touching, Structure)], Structure)'
+rule_index: 0
 output_dir_spec: 'output_spec' # The directory where output images will be stored. It will be created if it does not exist.
 
 # Debugging

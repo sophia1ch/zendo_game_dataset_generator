@@ -280,7 +280,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
         current_object = generate_creation(args, instruction, collection)
 
         # randomly rotate the objects in 90 degree steps
-        random_rotation = random.uniform(0, 360)
+        random_rotation = random.choice([0, 90, 180, 270])
         current_object.rotate_z(random_rotation)
 
         if instruction['action'] == 'grounded':
