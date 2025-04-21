@@ -18,6 +18,32 @@ import json
 
 sys.argv = sys.argv[:1]
 
+def load_zendo_rules(filepath="configs/zendo_rules_fixed.txt"):
+    rules = []
+    queries = []
+    queries_n = []
+
+    with open(filepath, "r", encoding="utf-8") as f:
+        current_rule = None
+        current_query = None
+        current_query_n = None
+
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            if line.startswith("rule:"):
+                current_rule = line.split("rule:", 1)[1].strip().strip("'")
+                rules.append(current_rule)
+            elif line.startswith("query:"):
+                current_query = line.split("query:", 1)[1].strip().strip("'")
+                queries.append(current_query)
+            elif line.startswith("query_n:"):
+                current_query_n = line.split("query_n:", 1)[1].strip().strip("'")
+                queries_n.append(current_query_n)
+
+    return rules, queries, queries_n
 
 def render(args, output_path, name):
     """
@@ -326,55 +352,109 @@ def main(args):
     failed_attempts = 0
 
     r = 0
+    rules, queries, n_queries = load_zendo_rules()
+    if rules is None or len(rules) == 0:
+        while r < num_rules:
+            print(f"Generating rule {r + 1}/{num_rules}...")
+            # get rule in string form and query, negative query in prolog form
+            rule, query, n_query = generate_rule(rules_json_file)
+            print(f"Rule: {rule}")
+            print(f"Query: {query}")
+            print(f"Negative Query: {n_query}")
+            collection = bpy.data.collections.new("Structure")
+            bpy.context.scene.collection.children.link(collection)
 
-    while r < num_rules:
-        print(f"Generating rule {r + 1}/{num_rules}...")
-        # get rule in string form and query, negative query in prolog form
-        rule, query, n_query = generate_rule(rules_json_file)
-        print(f"Rule: {rule}")
-        print(f"Query: {query}")
-        print(f"Negative Query: {n_query}")
-        collection = bpy.data.collections.new("Structure")
-        bpy.context.scene.collection.children.link(collection)
+            attempt_start = time.time()
+            generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, r,
+                                                                                      rule, query, False)
+            attempt_end = time.time()
 
-        attempt_start = time.time()
-        generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, r,
-                                                                                  rule, query, False)
-        attempt_end = time.time()
-
-        # If result is not true, then prolog query took to long, therefore try again
-        if not generated_successfully:
-            total_failed_time += (attempt_end - attempt_start)
-            failed_attempts += 1
-            continue
-
-        total_gpu_time += render_time
-        total_cpu_time += cpu_time
-
-        # If bool is set for generating also scenes which doesn't fulfill the rule
-        if generate_invalid_examples:
-            inv_start = time.time()
-            success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
-                                                                                 r, rule, n_query, True)
-            inv_end = time.time()
-
-            if not success_invalid:
-                total_failed_time += (inv_end - inv_start)
+            # If result is not true, then prolog query took to long, therefore try again
+            if not generated_successfully:
+                total_failed_time += (attempt_end - attempt_start)
                 failed_attempts += 1
-            else:
-                total_gpu_time += render_time_invalid
-                total_cpu_time += cpu_time_invalid
+                continue
 
-        r += 1
+            total_gpu_time += render_time
+            total_cpu_time += cpu_time
 
-    print(f"\nDataset generation complete.")
+            # If bool is set for generating also scenes which doesn't fulfill the rule
+            if generate_invalid_examples:
+                inv_start = time.time()
+                success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
+                                                                                     r, rule, n_query, True)
+                inv_end = time.time()
 
-    print(f"\nTime to complete: {(time.time() - start_time):.2f}s")
-    print(f"Total GPU time: {total_gpu_time:.2f}s")
-    print(f"Total CPU time: {total_cpu_time:.2f}s")
-    print(f"Total failed attempts time: {total_failed_time:.2f}s")
-    print(f"Total failed attempts: {failed_attempts}")
-    print(f"Total execution iterations: {num_rules}")
+                if not success_invalid:
+                    total_failed_time += (inv_end - inv_start)
+                    failed_attempts += 1
+                else:
+                    total_gpu_time += render_time_invalid
+                    total_cpu_time += cpu_time_invalid
+
+            r += 1
+
+        print(f"\nDataset generation complete.")
+
+        print(f"\nTime to complete: {(time.time() - start_time):.2f}s")
+        print(f"Total GPU time: {total_gpu_time:.2f}s")
+        print(f"Total CPU time: {total_cpu_time:.2f}s")
+        print(f"Total failed attempts time: {total_failed_time:.2f}s")
+        print(f"Total failed attempts: {failed_attempts}")
+        print(f"Total execution iterations: {num_rules}")
+    else:
+        print(f"Using existing rules from fixed_zendo_rules.txt")
+        i = 0
+        while i < len(rules):
+            print(f"Generating rule {i + 1}/{num_rules}...")
+            # get rule in string form and query, negative query in prolog form
+            rule = rules[i]
+            query = queries[i]
+            n_query = n_queries[i]
+            print(f"Rule: {rule}")
+            print(f"Query: {query}")
+            print(f"Negative Query: {n_query}")
+            collection = bpy.data.collections.new("Structure")
+            bpy.context.scene.collection.children.link(collection)
+
+            attempt_start = time.time()
+            generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, i,
+                                                                                      rule, query, False)
+            attempt_end = time.time()
+
+            # If result is not true, then prolog query took to long, therefore try again
+            if not generated_successfully:
+                total_failed_time += (attempt_end - attempt_start)
+                failed_attempts += 1
+                continue
+
+            total_gpu_time += render_time
+            total_cpu_time += cpu_time
+
+            # If bool is set for generating also scenes which doesn't fulfill the rule
+            if generate_invalid_examples:
+                inv_start = time.time()
+                success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
+                                                                                     i, rule, n_query, True)
+                inv_end = time.time()
+
+                if not success_invalid:
+                    total_failed_time += (inv_end - inv_start)
+                    failed_attempts += 1
+                else:
+                    total_gpu_time += render_time_invalid
+                    total_cpu_time += cpu_time_invalid
+
+            i += 1
+
+        print(f"\nDataset generation complete.")
+
+        print(f"\nTime to complete: {(time.time() - start_time):.2f}s")
+        print(f"Total GPU time: {total_gpu_time:.2f}s")
+        print(f"Total CPU time: {total_cpu_time:.2f}s")
+        print(f"Total failed attempts time: {total_failed_time:.2f}s")
+        print(f"Total failed attempts: {failed_attempts}")
+        print(f"Total execution iterations: {num_rules}")
 
 
 if __name__ == '__main__':

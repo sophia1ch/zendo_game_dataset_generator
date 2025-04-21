@@ -237,7 +237,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
 
         try:
             generate_structure(args, structure, collection)
-            render_time = render(args, "rule", scene_name)
+            render_time = render(args, str(rule_idx), scene_name)
             render_time_total += render_time
 
             scene_objects = ZendoObject.instances
@@ -309,9 +309,8 @@ def main(args):
     generate_invalid_examples = args.generate_invalid_examples
 
     # Write CSV header
-    if os.path.exists(args.output_dir_spec):
-        shutil.rmtree(args.output_dir_spec)
-    os.makedirs(args.output_dir_spec, exist_ok=True)
+    if not os.path.exists(args.output_dir_spec):
+        os.makedirs(args.output_dir_spec, exist_ok=True)
     csv_file_path = os.path.join(args.output_dir_spec, "ground_truth.csv")
     with open(csv_file_path, "w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)

@@ -15,7 +15,7 @@ stacking_offset: 0.1 # Offset for stacking objects ontop of each other
 num_rules: 20 # How many random rules should be generated
 num_examples: 7 # How many random scenes should be generated per rule
 generate_invalid_examples: True # Generate for every rule an invalid example which doesn't fulfill the given rule
-num_invalid_examples: 7 # How many invalid scenes should be generated per rule
+num_invalid_examples: 10 # How many invalid scenes should be generated per rule
 rules_prolog_file: 'rules/rules.pl' # The prolog file which creates the structure array from a parsed string
 rules_json_file: 'rules/zendo_rules.json'
 
@@ -31,10 +31,10 @@ collision_margin: 0.0 # Margin to extend the bounding boxes of objects during th
 touching_margin: 0.0 # Margin for placing objects with the touching interaction
 ray_interpolation: 10 # Interpolation steps for casting the rays, defines the amount of interpolated rays between the actual points defined by the vertices of the object
 los_threshold: 0.20 # Threshold for line of sight
-rule: 'A structure must contain an even number of flat pieces touching a upright piece.'
-query: 'generate_valid_structure([even_number_of_interaction(flat, upright, touching, Structure)], Structure)'
-query_n: 'generate_invalid_structure([even_number_of_interaction(flat, upright, touching, Structure)], Structure)'
-rule_index: 0
+rule: 'A structure must contain at least 1 block pieces on top of another block piece.'
+query: 'generate_valid_structure([at_least_interaction(block, block, on_top_of, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(block, block, on_top_of, 1, Structure)], Structure)'
+rule_index: 1
 output_dir_spec: 'output_spec' # The directory where output images will be stored. It will be created if it does not exist.
 
 # Debugging
