@@ -126,10 +126,19 @@
     }
   ],
   "ORIENTATION": [
-    "flat",
-    "upright",
-    "upside_down"
-  ],
+  {
+    "group": "flat",
+    "includes": ["flat", "cheesecake"]
+  },
+  {
+    "group": "vertical",
+    "includes": ["upright", "upside_down"]
+  },
+  "flat",
+  "upright",
+  "upside_down",
+  "cheesecake"
+],
   "COLOR": [
     "blue",
     "yellow",
@@ -138,15 +147,15 @@
   "SHAPE": [
     {
       "template": "pyramid",
-      "orientations": ["flat", "upright", "weird"]
+      "orientations": ["vertical", "flat", "upright", "upside-down", "weird"]
     },
     {
       "template": "wedge",
-      "orientations": ["flat", "upright", "cheesecake", "weird"]
+      "orientations": ["vertical", "flat", "upright", "cheesecake", "upside-down", "weird"]
     },
     {
       "template": "block",
-      "orientations": ["flat", "upright", "upside-down", "weird"]
+      "orientations": ["vertical", "flat", "upright", "upside-down", "weird"]
     }
   ],
   "NUMBER": [

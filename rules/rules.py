@@ -258,7 +258,12 @@ def load_json_rules(filename) -> Rules | None:
             update_templates_by_match(templates_of_match, placeholder.all_templates)
         rules = Rules(placeholders=placeholders, templates_of_start_match=templates_of_match,
                       templates_start_pattern=make_templates_by_match_pattern(templates_of_match))
-
+        rules.orientation_groups = {}
+        if "ORIENTATION" in data:
+            for val in data["ORIENTATION"]:
+                if isinstance(val, dict) and "group" in val and "includes" in val:
+                    for ori in val["includes"]:
+                        rules.orientation_groups[ori] = val["group"]
         return rules
     return None
 
@@ -379,7 +384,13 @@ def random_placeholder_template(rules: Rules, placeholder_id: str, two_steps: bo
         if len(remaining_placeholder_templates) == 0:
             raise Exception(f"Every template of placeholder '{placeholder_id}' was already used.")
         picked_template = random.choice(remaining_placeholder_templates)
-
+    if placeholder_id == "ORIENTATION":
+        used_orientations = used_templates.get("ORIENTATION", [])
+        if used_orientations:
+            used_group = rules.orientation_groups.get(used_orientations[0].template, used_orientations[0].template)
+            new_group = rules.orientation_groups.get(picked_template.template, picked_template.template)
+            if used_group != new_group:
+                raise Exception(f"Incompatible orientation group: tried to mix '{used_group}' and '{new_group}'.")
     if placeholder_id not in used_templates:
         used_templates[placeholder_id] = []
     used_templates[placeholder_id].append(picked_template)
