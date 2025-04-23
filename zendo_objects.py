@@ -303,6 +303,7 @@ class ZendoObject:
 class Pyramid(ZendoObject):
     poses = {
         "upright": Quaternion(Vector((0.0, 0.0, 0.0)), math.radians(0)),
+        "upside_down": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(180)),
         "flat": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(106))
     }
 

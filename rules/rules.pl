@@ -173,8 +173,7 @@ random_orientation(Shape, Orientation) :-
     % exclude specific cases for the different shapes
     findall(O, (orientation(O), (
         (Shape = block, O \= cheesecake);
-        (Shape = wedge, O \= upside_down);
-        (Shape = pyramid, O \= cheesecake, O \= upside_down)
+        (Shape = pyramid, O \= cheesecake)
     )), ValidOrientations),
     random_member(Orientation, ValidOrientations).
 
@@ -310,7 +309,7 @@ interaction_constraint_check(Structure) :-
                    TargetOrientation = upside_down, SourceOrientation = upside_down);
 
                   % Upside-down pyramid on block
-                  (TargetShape = block, SourceShape = pyramid, SourceOrientation = upside_down)))
+                  (TargetShape = block, SourceShape = pyramid, SourceOrientation = upside_down, TargetOrientation = SourceOrientation)))
             )
         )
     ),
@@ -350,19 +349,45 @@ interaction_constraint_check(Structure) :-
         length(Sources, Count),
         Count > 4
     ),
-    % Upside-down wedges or pyramids may be grounded only if at least 2 pieces are touching them
+    % Upside-down pyramids must either be touched by at least 2 others or be on top of an upside-down block
     forall(
-        member(item(TargetId, _, Shape, upside_down, grounded), Structure),
+        member(item(PyramidId, _, pyramid, upside_down, Interaction), Structure),
         (
-            (Shape \= wedge, Shape \= pyramid)
-            ;
-            % Count how many other items are touching this one
-            findall(SourceId,
+            % Option 1: touched by at least 2 valid pieces
+            findall(OtherId,
                 (
-                    member(item(SourceId, _, _, _, touching(TargetId)), Structure)
+                    member(item(OtherId, _, OtherShape, OtherOrientation, touching(PyramidId)), Structure),
+                    (
+                        OtherShape = block
+                        ;
+                        (OtherShape \= block, OtherOrientation = upright)
+                    )
                 ),
-                TouchingItems),
-            length(TouchingItems, Count),
+                ValidTouching),
+            length(ValidTouching, Count),
+            Count >= 2
+            ;
+            % Option 2: on_top_of an upside-down pyramid stack, base is upside-down block
+            Interaction = on_top_of(ParentId),
+            upside_down_stack_has_block_base(ParentId, Structure)
+        )
+    ),
+    % Upside-down wedges must be touched by at least 2 other pieces
+    forall(
+        member(item(WedgeId, _, wedge, upside_down, _), Structure),
+        (
+            findall(OtherId,
+                (
+                    member(item(OtherId, _, OtherShape, OtherOrientation, touching(WedgeId)), Structure),
+                    (
+                        OtherShape = block
+                        ;
+                        (OtherShape \= block, OtherOrientation = upright)
+                    )
+                ),
+                ValidTouching
+            ),
+            length(ValidTouching, Count),
             Count >= 2
         )
     ),
@@ -402,7 +427,13 @@ has_loop_helper(StartId, CurrentId, Structure, Visited) :-
     member(item(CurrentId, _, _, _, on_top_of(NextId)), Structure),
     has_loop_helper(StartId, NextId, Structure, [CurrentId|Visited]).
 
+% Recursively walk the on_top_of chain to find the base of an upside-down pyramid stack.
+upside_down_stack_has_block_base(ItemId, Structure) :-
+    member(item(ItemId, _, block, upside_down, _), Structure).
 
+upside_down_stack_has_block_base(ItemId, Structure) :-
+    member(item(ItemId, _, pyramid, upside_down, on_top_of(ParentId)), Structure),
+    upside_down_stack_has_block_base(ParentId, Structure).
 
 %%% Rules %%%
 % Check predicates (pure checks, no generation)

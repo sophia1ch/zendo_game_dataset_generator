@@ -19,19 +19,19 @@ query: 'generate_valid_structure([more_than(pyramid, red, Structure)], Structure
 query_n: 'generate_invalid_structure([more_than(pyramid, red, Structure)], Structure)'
 
 # at_least, or
-rule: 'A structure must contain at least 3 block pieces or at least 1 upside_down pieces.'
-query: 'generate_valid_structure([or([at_least(block, 3, Structure), at_least(upside_down, 1, Structure)])], Structure)'
-query_n: 'generate_invalid_structure([or([at_least(block, 3, Structure), at_least(upside_down, 1, Structure)])], Structure)'
+rule: 'A structure must contain at least 1 block pieces or at least 2 upside_down pieces.'
+query: 'generate_valid_structure([or([at_least(block, 1, Structure), at_least(upside_down, 2, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([at_least(block, 1, Structure), at_least(upside_down, 2, Structure)])], Structure)'
 
 # at_least, or, more_than
-rule: 'A structure must contain at least 3 red flat pieces or more upside_down pieces than red pieces.'
-query: 'generate_valid_structure([or([at_least(red, flat, 3, Structure), more_than(upside_down, red, Structure)])], Structure)'
-query_n: 'generate_invalid_structure([or([at_least(red, flat, 3, Structure), more_than(upside_down, red, Structure)])], Structure)'
+rule: 'A structure must contain at least 2 red flat pieces or more upside_down pieces than red pieces.'
+query: 'generate_valid_structure([or([at_least(red, flat, 2, Structure), more_than(upside_down, red, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([at_least(red, flat, 2, Structure), more_than(upside_down, red, Structure)])], Structure)'
 
 # odd_number_of, exactly
-rule: 'A structure must contain an odd number of block pieces and exactly 3 pyramid pieces.'
-query: 'generate_valid_structure([and([odd_number_of(block, Structure), exactly(pyramid, 3, Structure)])], Structure)'
-query_n: 'generate_invalid_structure([and([odd_number_of(block, Structure), exactly(pyramid, 3, Structure)])], Structure)'
+rule: 'A structure must contain an odd number of block pieces and exactly 1 pyramid pieces.'
+query: 'generate_valid_structure([and([odd_number_of(block, Structure), exactly(pyramid, 1, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([odd_number_of(block, Structure), exactly(pyramid, 1, Structure)])], Structure)'
 
 # either_or
 rule: 'A structure must contain either 2 or 1 of total pieces.'
@@ -58,15 +58,30 @@ rule: 'A structure must contain at least 1 block pieces on top of another pyrami
 query: 'generate_valid_structure([at_least_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
 query_n: 'generate_invalid_structure([at_least_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
 
+# on_top_of, exactly
+rule: 'A structure must contain exactly 2 upside down pieces on top of another block piece.'
+query: 'generate_valid_structure([exactly(upside_down, block, on_top_of, 2, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly(upside_down, block, on_top_of, 2, Structure)], Structure)'
+
 # on_top_of, exactly_interaction
 rule: 'A structure must contain exactly 2 pyramid pieces on top of another pyramid piece.'
 query: 'generate_valid_structure([exactly_interaction(pyramid, pyramid, on_top_of, 2, Structure)], Structure)'
 query_n: 'generate_invalid_structure([exactly_interaction(pyramid, pyramid, on_top_of, 2, Structure)], Structure)'
 
+# on_top_of, exactly_interaction
+rule: 'A structure must contain exactly 1 block pieces on top of another pyramid piece.'
+query: 'generate_valid_structure([exactly_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
+
 # on_top_of, odd_number_of_interaction
 rule: 'A structure must contain an odd number wedge pieces on top of another block piece.'
 query: 'generate_valid_structure([odd_number_of_interaction(wedge, block, on_top_of, Structure)], Structure)'
 query_n: 'generate_invalid_structure([odd_number_of_interaction(wedge, block, on_top_of, Structure)], Structure)'
+
+# pointing, odd_number_of_interaction
+rule: 'A structure must contain an odd number wedge pieces pointing at another block piece.'
+query: 'generate_valid_structure([odd_number_of_interaction(wedge, block, pointing, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of_interaction(wedge, block, pointing, Structure)], Structure)'
 
 # on_top_of, even_number_of_interaction
 rule: 'A structure must contain an even number wedge pieces on top of another wedge piece.'

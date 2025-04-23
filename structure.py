@@ -65,6 +65,8 @@ def on_top(object_1: ZendoObject, target: ZendoObject, margin: float = 0.0):
     bpy.context.view_layer.update()
     if type(target) is Pyramid and object_1.pose == 'upright' and target.pose == 'upright':
         nested(object_1, target)
+    elif type(object_1) is Pyramid and object_1.pose == 'upside_down' and target.pose == 'upside_down':
+        nested(target, object_1)
     else:
         touching(object_1, target, face='top', margin=margin)
 
@@ -91,8 +93,12 @@ def get_restricted_bounds(obj_a, obj_b, direction):
     b_min = min(v[filter_axis] for v in verts_b)
     b_max = max(v[filter_axis] for v in verts_b)
 
+    # Bounding range of obj_b along the v axis
+    c_min = min(v[2] for v in verts_b)
+    c_max = max(v[2] for v in verts_b)
+
     # Filter verts in A where the filter axis lies within B's bounds
-    filtered = [v for v in verts_a if b_min <= v[filter_axis] <= b_max]
+    filtered = [v for v in verts_a if b_min <= v[filter_axis] <= b_max and c_min <= v[2] <= c_max]
 
     if not filtered:
         return None, None  # No overlap
@@ -165,6 +171,8 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
             offset = min_2 - max_1
             offset -= margin
         # Move object_1 to touch object_2
+        if ((object_1.pose == 'upside_down' and object_2.pose == 'upright') or (object_2.pose == 'upside_down' and object_1.pose == 'upright')) and object_2.shape == "pyramid" and object_1.shape == "pyramid":
+            offset = offset * 0.5
         object_1.obj.location[axis_index] += offset
         if offset is None:
            raise ValueError(
@@ -177,7 +185,7 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
         object_2.set_touching("top", object_1.obj)
 
 
-def nested(object_1: ZendoObject, object_2: Pyramid):
+def nested(object_1: ZendoObject, object_2: ZendoObject):
     """
     Nests object_2 inside object_1, specifically for pyramids.
 
