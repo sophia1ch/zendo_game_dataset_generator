@@ -23,15 +23,16 @@ interaction(pointing(_)).
 interaction(on_top_of(_)).
 %interaction(inside(_)).
 
-max_items(7).
+max_items(5).
 min_items(1).
 
 
 %%% Generating %%%
 % Generate repeatedly until a structure satisfies all checks (main function)
 generate_valid_structure(Checks, Structure) :-
+    determine_structure_size(Checks, N),
     repeat,
-    generate_structure(Structure),
+    generate_items(N, N, Structure),
     interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
 
@@ -62,15 +63,89 @@ generate_valid_structure(Checks, Structure) :-
 
 % Generate repeatedly until a structure doesnt fulfills the checks
 generate_invalid_structure(Checks, Structure) :-
+    determine_invalid_structure_size(Checks, N),
     repeat,
-    generate_structure(Structure),
+    generate_items(N, N, Structure),
     interaction_constraint_check(Structure),
     (not(and(Checks)) -> !; fail).
 
+% Define preferred size range if not specified by rules
+default_size_range([7, 6, 5, 4, 3, 2, 1]).
+
+determine_structure_size(Checks, N) :-
+    possible_structure_sizes_from_checks(Checks, ValidSizes),
+    random_member(N, ValidSizes).
+
+contains_explicitly_allows_1_in_either_or(Checks) :-
+    member(C, Checks),
+    (
+        C = either_or(1, _, _)
+    ;
+        C = either_or(_, 1, _)
+    ).
+
+possible_structure_sizes_from_checks(Checks, ValidSizes) :-
+    default_size_range(DefaultSizes),
+
+    % 1. Check for either_or constraints
+    ( member(either_or(A, B, _), Checks) ->
+        AllowedSizes1 = [A, B]
+    ; AllowedSizes1 = DefaultSizes ),
+
+    % 2. Check for odd/even number constraints
+    ( member(odd_number_of(_), Checks) ->
+        include(odd, AllowedSizes1, AllowedSizes2)
+    ; member(even_number_of(_), Checks) ->
+        include(even, AllowedSizes1, AllowedSizes2)
+    ; AllowedSizes2 = AllowedSizes1 ),
+
+    % 3. Find all minimums from any constraints that imply minimum structure size
+    findall(N, (
+        member(C, Checks),
+        (
+            C = exactly(_, N, _)
+        ;   C = exactly(_, _, N, _)
+        ;   C = at_least_interaction(_, _, _, N, _)
+        )
+    ), Ns),
+    ( Ns = [] -> MinReq = 1 ; max_list(Ns, MinReq) ),
+
+    % 4. Filter by minimum requirement
+    include(ge(MinReq), AllowedSizes2, ValidSizes),
+    ValidSizes \= [], !.  % Succeed only if non-empty
+
+determine_invalid_structure_size(Checks, N) :-
+    invalid_structure_sizes_from_checks(Checks, InvalidSizes),
+    random_member(N, InvalidSizes).
+
+invalid_structure_sizes_from_checks(Checks, Sizes) :-
+    default_size_range(DefaultSizes),
+
+    % Step 1: Exclude sizes listed in either_or
+    ( member(either_or(A, B, _), Checks) ->
+        exclude(eq(A), DefaultSizes, T1),
+        exclude(eq(B), T1, Sizes1)
+    ; Sizes1 = DefaultSizes ),
+
+    % Step 2: Apply opposite of odd/even
+    ( member(odd_number_of(_), Checks) ->
+        include(even, Sizes1, Sizes2)
+    ; member(even_number_of(_), Checks) ->
+        include(odd, Sizes1, Sizes2)
+    ; Sizes2 = Sizes1 ),
+
+    % Step 3: Filter out any structure sizes that exactly match attribute-based counts
+    findall(N, (
+        member(C, Checks),
+        (C = exactly(_, N, _); C = exactly(_, _, N, _))
+    ), ExactNs),
+    exclude_list(Sizes2, ExactNs, Sizes),
+
+    Sizes \= [], !.  % Fail safely if nothing matches
+
+
 generate_structure(Structure) :-
-    max_items(Max),
-    min_items(Min),
-    random_between(Min, Max, N),
+    random_structure_size(N),
     repeat,
     (generate_items(N, N, Structure) -> !; fail).
 
@@ -145,6 +220,42 @@ count_multiple_attributes(A1, A2, Structure, Count) :-
     include(item_has_two_attributes(A1, A2), Structure, Filtered),
     length(Filtered, Count).
 
+% Counts how many unique items have QAttr and are in an interaction with a target with IAttr.
+count_interaction_matching_items(QAttr, IAttr, touching, Structure, Count) :-
+    findall(SourceId,
+        (
+            member(item(SourceId, SC, SS, SO, touching(TargetId)), Structure),
+            item_has_attribute(QAttr, item(SourceId, SC, SS, SO, touching(TargetId))),
+            member(item(TargetId, TC, TS, TO, _), Structure),
+            item_has_attribute(IAttr, item(TargetId, TC, TS, TO, _))
+        ),
+        Matches1),
+    findall(SourceId,
+        (
+            member(item(TargetId, TC, TS, TO, touching(SourceId)), Structure),
+            item_has_attribute(IAttr, item(TargetId, TC, TS, TO, touching(SourceId))),
+            member(item(SourceId, SC, SS, SO, _), Structure),
+            item_has_attribute(QAttr, item(SourceId, SC, SS, SO, _))
+        ),
+        Matches2),
+    append(Matches1, Matches2, All),
+    sort(All, Unique),
+    length(Unique, Count).
+
+count_interaction_matching_items(QAttr, IAttr, InteractionName, Structure, Count) :-
+    InteractionName \= touching,
+    findall(SourceId,
+        (
+            member(item(SourceId, SC, SS, SO, Interaction), Structure),
+            Interaction =.. [InteractionName, TargetId],
+            item_has_attribute(QAttr, item(SourceId, SC, SS, SO, Interaction)),
+            member(item(TargetId, TC, TS, TO, _), Structure),
+            item_has_attribute(IAttr, item(TargetId, TC, TS, TO, _))
+        ),
+        Matches),
+    sort(Matches, Unique),
+    length(Unique, Count).
+
 % Check if an item has QAttr and an interaction of type InteractionName that leads to another item with IAttr
 has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, item(_,C,S,O,I)) :-
     item_has_attribute(QAttr, item(_,C,S,O,I)),
@@ -187,13 +298,19 @@ interaction_constraint_check(Structure) :-
                   (TargetShape = wedge, TargetOrientation = cheesecake);
                   (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = vertical);
                   (TargetShape = pyramid, SourceShape = pyramid, TargetOrientation = SourceOrientation, TargetOrientation = upright)));
-                % On top of another item
+                % On top of another item, source is on top of target
                 (TargetInteraction = on_top_of(AnotherId),
                  AnotherId \= SourceId,
                  ((TargetShape = block);
                   (TargetShape = wedge, TargetOrientation = cheesecake);
                   (TargetShape = pyramid, TargetOrientation = vertical, SourceOrientation = upright);
-                  (TargetShape = pyramid, TargetOrientation = upright, TargetOrientation = SourceOrientation)))
+                  (TargetShape = pyramid, TargetOrientation = upright, TargetOrientation = SourceOrientation);
+                  % Upside-down pyramid stacking inside another upside-down pyramid
+                  (TargetShape = pyramid, SourceShape = pyramid,
+                   TargetOrientation = upside_down, SourceOrientation = upside_down);
+
+                  % Upside-down pyramid on block
+                  (TargetShape = block, SourceShape = pyramid, SourceOrientation = upside_down)))
             )
         )
     ),
@@ -232,6 +349,22 @@ interaction_constraint_check(Structure) :-
                 Sources),
         length(Sources, Count),
         Count > 4
+    ),
+    % Upside-down wedges or pyramids may be grounded only if at least 2 pieces are touching them
+    forall(
+        member(item(TargetId, _, Shape, upside_down, grounded), Structure),
+        (
+            (Shape \= wedge, Shape \= pyramid)
+            ;
+            % Count how many other items are touching this one
+            findall(SourceId,
+                (
+                    member(item(SourceId, _, _, _, touching(TargetId)), Structure)
+                ),
+                TouchingItems),
+            length(TouchingItems, Count),
+            Count >= 2
+        )
     ),
     % Ensure at least one touching element is grounded via grounded or pointing (all pointing are grounded)
     % Or the touching item is part of a chain of touching items
@@ -330,11 +463,7 @@ odd_number_of(A1, A2, Structure) :-
     1 is C mod 2.
 
 odd_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
-    findall(Item,
-        (member(Item, Structure),
-        has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, Item)),
-        Filtered),
-    length(Filtered, C),
+    count_interaction_matching_items(QAttr, IAttr, InteractionName, Structure, C),
     1 is C mod 2.
 
 even_number_of(Attr, Structure) :-
@@ -348,13 +477,9 @@ even_number_of(A1, A2, Structure) :-
     0 is C mod 2.
 
 even_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
-    findall(Item,
-        (member(Item, Structure),
-        has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, Item)),
-        Filtered),
-    length(Filtered, Count),
-    Count \= 0,
-    0 is Count mod 2.
+    count_interaction_matching_items(QAttr, IAttr, InteractionName, Structure, C),
+    C \= 0,
+    0 is C mod 2.
 
 either_or(N1, N2, Structure) :-
     length(Structure, L),
@@ -369,3 +494,13 @@ or([C|_]) :-
     call(C).
 or([_|Cs]) :-
     or(Cs).
+
+odd(N) :- 1 is N mod 2.
+even(N) :- 0 is N mod 2.
+ge(Min, N) :- N >= Min.
+eq(X, Y) :- X =:= Y.
+
+exclude_list(List, Excluded, Result) :-
+    exclude(in_list(Excluded), List, Result).
+
+in_list(L, X) :- member(X, L).
