@@ -3,6 +3,11 @@ rule: 'A structure must contain an even number of yellow flat pieces.'
 query: 'generate_valid_structure([even_number_of(yellow, flat, Structure)], Structure)'
 query_n: 'generate_invalid_structure([even_number_of(yellow, flat, Structure)], Structure)'
 
+# odd_number_of
+rule: 'A structure must contain an even number of wedge pieces.'
+query: 'generate_valid_structure([odd_number_of(wedge, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(wedge, Structure)], Structure)'
+
 # even_number_of, and, at_least
 rule: 'A structure must contain an even number of block pieces and at least 2 upside_down pieces.'
 query: 'generate_valid_structure([and([even_number_of(block, Structure), at_least(upside_down, 2, Structure)])], Structure)'
@@ -53,37 +58,22 @@ rule: 'A structure must contain an odd number of flat pieces touching a upside d
 query: 'generate_valid_structure([odd_number_of_interaction(flat, upside_down, touching, Structure)], Structure)'
 query_n: 'generate_invalid_structure([odd_number_of_interaction(flat, upside_down, touching, Structure)], Structure)'
 
-# on_top_of, at_least_interaction
-rule: 'A structure must contain at least 1 block pieces on top of another pyramid piece.'
-query: 'generate_valid_structure([at_least_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
-query_n: 'generate_invalid_structure([at_least_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
-
-# on_top_of, exactly
-rule: 'A structure must contain exactly 2 upside down pieces on top of another block piece.'
-query: 'generate_valid_structure([exactly(upside_down, block, on_top_of, 2, Structure)], Structure)'
-query_n: 'generate_invalid_structure([exactly(upside_down, block, on_top_of, 2, Structure)], Structure)'
-
-# on_top_of, exactly_interaction
-rule: 'A structure must contain exactly 2 pyramid pieces on top of another pyramid piece.'
-query: 'generate_valid_structure([exactly_interaction(pyramid, pyramid, on_top_of, 2, Structure)], Structure)'
-query_n: 'generate_invalid_structure([exactly_interaction(pyramid, pyramid, on_top_of, 2, Structure)], Structure)'
-
 # on_top_of, exactly_interaction
 rule: 'A structure must contain exactly 1 block pieces on top of another pyramid piece.'
 query: 'generate_valid_structure([exactly_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
 query_n: 'generate_invalid_structure([exactly_interaction(block, pyramid, on_top_of, 1, Structure)], Structure)'
 
-# on_top_of, odd_number_of_interaction
-rule: 'A structure must contain an odd number wedge pieces on top of another block piece.'
-query: 'generate_valid_structure([odd_number_of_interaction(wedge, block, on_top_of, Structure)], Structure)'
-query_n: 'generate_invalid_structure([odd_number_of_interaction(wedge, block, on_top_of, Structure)], Structure)'
+# on_top_of, exactly_interaction
+rule: 'A structure must contain exactly 1 upside down pieces on top of another block piece.'
+query: 'generate_valid_structure([exactly_interaction(upside_down, block, on_top_of, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly_interaction(upside_down, block, on_top_of, 1, Structure)], Structure)'
+
+# on_top_of, exactly_interaction
+rule: 'A structure must contain exactly 1 pyramid pieces on top of another pyramid piece.'
+query: 'generate_valid_structure([exactly_interaction(pyramid, pyramid, on_top_of, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly_interaction(pyramid, pyramid, on_top_of, 1, Structure)], Structure)'
 
 # pointing, odd_number_of_interaction
-rule: 'A structure must contain an odd number wedge pieces pointing at another block piece.'
+rule: 'A structure must contain an odd number of wedge pieces pointing at another block piece.'
 query: 'generate_valid_structure([odd_number_of_interaction(wedge, block, pointing, Structure)], Structure)'
 query_n: 'generate_invalid_structure([odd_number_of_interaction(wedge, block, pointing, Structure)], Structure)'
-
-# on_top_of, even_number_of_interaction
-rule: 'A structure must contain an even number wedge pieces on top of another wedge piece.'
-query: 'generate_valid_structure([even_number_of_interaction(wedge, wedge, on_top_of, Structure)], Structure)'
-query_n: 'generate_invalid_structure([even_number_of_interaction(wedge, wedge, on_top_of, Structure)], Structure)'

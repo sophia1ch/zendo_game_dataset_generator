@@ -408,6 +408,7 @@ class Block(ZendoObject):
 class Wedge(ZendoObject):
     poses = {
         "upright": Quaternion(Vector((0.0, 0.0, 0.0)), math.radians(0)),
+        "upside_down": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(180)),
         "cheesecake": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(90)),
         "flat": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(104))
     }

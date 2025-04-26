@@ -173,7 +173,8 @@ random_orientation(Shape, Orientation) :-
     % exclude specific cases for the different shapes
     findall(O, (orientation(O), (
         (Shape = block, O \= cheesecake);
-        (Shape = pyramid, O \= cheesecake)
+        (Shape = pyramid, O \= cheesecake);
+        (Shape = wedge, true)
     )), ValidOrientations),
     random_member(Orientation, ValidOrientations).
 
@@ -382,7 +383,7 @@ interaction_constraint_check(Structure) :-
                     (
                         OtherShape = block
                         ;
-                        (OtherShape \= block, OtherOrientation = upright)
+                        (OtherShape = pyramid, OtherOrientation = upright)
                     )
                 ),
                 ValidTouching

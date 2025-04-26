@@ -165,7 +165,7 @@ def threading_prolog_query(args):
                                     args=args)
 
     try:
-        result = result_async.get(timeout=6)
+        result = result_async.get(timeout=7)
     except multiprocessing.TimeoutError:
         debug(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
         pool.close()
@@ -214,6 +214,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
     while i < num_examples:
         # Generate structure
         scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file))
+        print("found: ", scenes)
         if not scenes:
             retry_attempts += 1
             if retry_attempts >= max_total_retries:

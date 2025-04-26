@@ -191,7 +191,7 @@ def generate_relation(instruction):
     return relation_type, target
 
 
-def generate_creation(args, instruction, collection):
+def generate_creation(args, instructions, index, collection):
     """
     Generates a Zendo object based on the provided instruction and adds it to the collection.
 
@@ -201,6 +201,7 @@ def generate_creation(args, instruction, collection):
     :return: The created ZendoObject instance.
     """
 
+    instruction = instructions[index]
     idx = instruction['id']
     shape = instruction['shape']
     color = instruction['color']
@@ -270,17 +271,21 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
 
     related_objects = get_relations(instructions)
     if len(related_objects) != len(instructions):
-        raise Exception(f"Rule not resolvable!\n {instructions}")
+        raise Exception(f"Rule not resolvable!\n {instructions}\n {related_objects}")
+    # print(items, instructions, related_objects)
 
     integrity = True
 
     # Place related objects
     for instruction in related_objects:
-        idx = related_objects.index(instruction)
-        current_object = generate_creation(args, instruction, collection)
+        idx = instructions.index(instruction)
+        current_object = generate_creation(args, instructions, idx, collection)
 
         # randomly rotate the objects in 90 degree steps
-        random_rotation = random.choice([0, 90, 180, 270])
+        if current_object.shape == "wedge" and current_object.pose == "upside_down":
+            random_rotation = 90
+        else:
+            random_rotation = random.choice([0, 90, 180, 270])
         current_object.rotate_z(random_rotation)
 
         if instruction['action'] == 'grounded':
@@ -315,6 +320,19 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                 if relation_type == 'touching':
                     random_faces = args.random_face_choice
                     faces = target.get_free_face()
+                    # if random_faces:
+                    #     if current_object.shape == 'pyramid' or current_object.shape == 'wedge':
+                    #         if 'right' in faces:
+                    #             face = 'right'
+                    #         else:
+                    #             face = random.choice(faces)
+                    #     if target.shape == 'pyramid' or target.shape == 'wedge':
+                    #         if 'left' in faces:
+                    #             face = 'left'
+                    #         else:
+                    #             face = random.choice(faces)
+                    #     else:
+                    #         face = random.choice(faces)
                     if random_faces:
                         face = random.choice(faces)
                     else:
@@ -427,7 +445,15 @@ def check_scene_occlusion(threshold):
                 obj_above = obj.location.z > hit_obj.location.z
                 hit_above = hit_obj.location.z > obj.location.z
 
-                # If one is above the other AND the lower one is a pyramid → allow
+                # If one is above the other AND the lower one is a block or both are upside down and the bottom one is a pyramid → allow
+                if aligned:
+                    if (((obj_above and "Pyramid" in hit_obj.name) or (hit_above and "Pyramid" in obj.name))
+                        or (obj_above and "Block" in hit_obj.name and "upside_down" in hit_obj.name and "Pyramid" in obj.name and "upside_down" in obj.name)
+                        or (hit_above and "Block" in obj.name and "upside_down" in obj.name and "Pyramid" in hit_obj.name and "upside_down" in hit_obj.name)):
+                        continue
+
+                blocked += 1
+                # If one is above the other AND the lower one is a pyramid or both are upside down and the bottom one is a block → allow
                 if aligned:
                     if (obj_above and "Pyramid" in hit_obj.name) or (hit_above and "Pyramid" in obj.name):
                         continue

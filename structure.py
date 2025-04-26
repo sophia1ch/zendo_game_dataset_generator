@@ -173,6 +173,8 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
         # Move object_1 to touch object_2
         if ((object_1.pose == 'upside_down' and object_2.pose == 'upright') or (object_2.pose == 'upside_down' and object_1.pose == 'upright')) and object_2.shape == "pyramid" and object_1.shape == "pyramid":
             offset = offset * 0.5
+        if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'wedge' and object_2.shape == "pyramid") or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'wedge' and object_1.shape == "pyramid"):
+            offset = offset * 0.5
         object_1.obj.location[axis_index] += offset
         if offset is None:
            raise ValueError(
