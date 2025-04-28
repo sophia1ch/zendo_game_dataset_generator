@@ -103,7 +103,8 @@ After setting up the environment, you can generate scenes using Blender in **hea
 
 To generate a dataset using the default configuration:
 ```bash
-  blender --background --python render.py --
+  /home/sophia/blender/4.4/python/bin/python3.11 -m pip install pyswip
+  PYTHONPATH=$(pwd) blender --background --python render.py --
 ```
 This will:
 - Generate scene structures using Prolog logic (`rules.pl`).

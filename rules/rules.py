@@ -146,11 +146,13 @@ def load_json_rules(filename) -> Rules | None:
             placeholder_pattern = re.compile(r"{([A-Z]+(?:\|[A-Z]+)*)}")
             placeholder_empty_pattern = re.compile(r"{}")
             for template in templates:
+                if isinstance(template, dict) and "group" in template and "includes" in template:
+                    continue  # Group info is handled outside here
                 # NOTE(kilian): Allow for short list where "template" is omitted and only the template values are stored
                 template_prolog = template["prolog"] if type(template) == dict and "prolog" in template else []
                 template_orientations = template["orientations"] if type(
                     template) == dict and "orientations" in template else []
-                template_string = template["template"] if type(template) == dict else str(template)
+                template_string = template['template'] if type(template) == dict else str(template)
 
                 # NOTE(kilian): Compute list of placeholders contained in the template
                 template_placeholders = []

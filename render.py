@@ -18,7 +18,12 @@ import json
 
 sys.argv = sys.argv[:1]
 
+import os
+
 def load_zendo_rules(filepath="configs/zendo_rules_fixed.txt"):
+    if not os.path.exists(filepath):
+        return None, None, None
+
     rules = []
     queries = []
     queries_n = []
@@ -44,6 +49,7 @@ def load_zendo_rules(filepath="configs/zendo_rules_fixed.txt"):
                 queries_n.append(current_query_n)
 
     return rules, queries, queries_n
+
 
 def render(args, output_path, name):
     """
@@ -406,7 +412,7 @@ def main(args):
         print(f"Using existing rules from fixed_zendo_rules.txt")
         i = 0
         while i < len(rules):
-            print(f"Generating rule {i + 1}/{num_rules}...")
+            print(f"Generating rule {i + 1}/{len(rules)}...")
             # get rule in string form and query, negative query in prolog form
             rule = rules[i]
             query = queries[i]
