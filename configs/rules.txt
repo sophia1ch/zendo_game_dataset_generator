@@ -1,0 +1,200 @@
+rule: 'A structure must contain an odd number of pyramid pieces or an odd number of total pieces.'
+query: 'generate_valid_structure([or([odd_number_of(pyramid, Structure), odd_number_of(Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([odd_number_of(pyramid, Structure), odd_number_of(Structure)])], Structure)'
+
+rule: 'A structure must contain at least 3 yellow upside_down pieces.'
+query: 'generate_valid_structure([at_least(yellow, upside_down, 3, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least(yellow, upside_down, 3, Structure)], Structure)'
+
+rule: 'A structure must contain more yellow pieces than blue pieces.'
+query: 'generate_valid_structure([more_than(yellow, blue, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(yellow, blue, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of block pieces grounded.'
+query: 'generate_valid_structure([odd_number_of(block, grounded, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(block, grounded, Structure)], Structure)'
+
+rule: 'A structure must contain more block pieces than pyramid pieces.'
+query: 'generate_valid_structure([more_than(block, pyramid, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(block, pyramid, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of pyramid pieces.'
+query: 'generate_valid_structure([odd_number_of(pyramid, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(pyramid, Structure)], Structure)'
+
+rule: 'A structure must contain at least 2 cheesecake wedge pieces.'
+query: 'generate_valid_structure([at_least(cheesecake, wedge, 2, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least(cheesecake, wedge, 2, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of yellow pyramid pieces.'
+query: 'generate_valid_structure([odd_number_of(yellow, pyramid, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(yellow, pyramid, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 1 upside_down pieces or an even number of yellow block pieces.'
+query: 'generate_valid_structure([or([exactly(upside_down, 1, Structure), even_number_of(yellow, block, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([exactly(upside_down, 1, Structure), even_number_of(yellow, block, Structure)])], Structure)'
+
+rule: 'A structure must contain an odd number of cheesecake pieces pointing at a blue piece.'
+query: 'generate_valid_structure([odd_number_of_interaction(cheesecake, blue, pointing, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of_interaction(cheesecake, blue, pointing, Structure)], Structure)'
+
+rule: 'A structure must contain an even number of flat pieces pointing at a yellow piece.'
+query: 'generate_valid_structure([even_number_of_interaction(flat, yellow, pointing, Structure)], Structure)'
+query_n: 'generate_invalid_structure([even_number_of_interaction(flat, yellow, pointing, Structure)], Structure)'
+
+rule: 'A structure must contain at least 1 wedge pieces touching a upright piece.'
+query: 'generate_valid_structure([at_least_interaction(wedge, upright, touching, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(wedge, upright, touching, 1, Structure)], Structure)'
+
+rule: 'A structure must contain at least 1 wedge pieces touching a upright piece.'
+query: 'generate_valid_structure([at_least_interaction(wedge, upright, touching, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(wedge, upright, touching, 1, Structure)], Structure)'
+
+rule: 'A structure must contain an even number of blue upside_down pieces.'
+query: 'generate_valid_structure([even_number_of(blue, upside_down, Structure)], Structure)'
+query_n: 'generate_invalid_structure([even_number_of(blue, upside_down, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of upside_down wedge pieces.'
+query: 'generate_valid_structure([odd_number_of(upside_down, wedge, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(upside_down, wedge, Structure)], Structure)'
+
+rule: 'A structure must contain more cheesecake pieces than wedge pieces.'
+query: 'generate_valid_structure([more_than(cheesecake, wedge, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(cheesecake, wedge, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 1 yellow pieces and exactly 2 pyramid pieces.'
+query: 'generate_valid_structure([and([exactly(yellow, 1, Structure), exactly(pyramid, 2, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([exactly(yellow, 1, Structure), exactly(pyramid, 2, Structure)])], Structure)'
+
+rule: 'A structure must contain at least 2 yellow pieces pointing at a red piece.'
+query: 'generate_valid_structure([at_least_interaction(yellow, red, pointing, 2, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(yellow, red, pointing, 2, Structure)], Structure)'
+
+rule: 'A structure must contain an even number of blue pyramid pieces.'
+query: 'generate_valid_structure([even_number_of(blue, pyramid, Structure)], Structure)'
+query_n: 'generate_invalid_structure([even_number_of(blue, pyramid, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of wedge pieces pointing at a blue piece.'
+query: 'generate_valid_structure([odd_number_of_interaction(wedge, blue, pointing, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of_interaction(wedge, blue, pointing, Structure)], Structure)'
+
+rule: 'A structure must contain at least 2 cheesecake pieces on top of another red piece.'
+query: 'generate_valid_structure([at_least_interaction(cheesecake, red, on_top_of, 2, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(cheesecake, red, on_top_of, 2, Structure)], Structure)'
+
+rule: 'A structure must contain more upright pieces than pyramid pieces.'
+query: 'generate_valid_structure([more_than(upright, pyramid, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(upright, pyramid, Structure)], Structure)'
+
+rule: 'A structure must contain more yellow pieces than red pieces.'
+query: 'generate_valid_structure([more_than(yellow, red, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(yellow, red, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of block pieces.'
+query: 'generate_valid_structure([odd_number_of(block, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(block, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 2 yellow upright pieces.'
+query: 'generate_valid_structure([exactly(yellow, upright, 2, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly(yellow, upright, 2, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of total pieces.'
+query: 'generate_valid_structure([odd_number_of(Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of yellow pieces touching a wedge piece.'
+query: 'generate_valid_structure([odd_number_of_interaction(yellow, wedge, touching, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of_interaction(yellow, wedge, touching, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 3 yellow wedge pieces.'
+query: 'generate_valid_structure([exactly(yellow, wedge, 3, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly(yellow, wedge, 3, Structure)], Structure)'
+
+rule: 'A structure must contain more wedge pieces than pyramid pieces.'
+query: 'generate_valid_structure([more_than(wedge, pyramid, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(wedge, pyramid, Structure)], Structure)'
+
+rule: 'A structure must contain at least 2 wedge pieces.'
+query: 'generate_valid_structure([at_least(wedge, 2, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least(wedge, 2, Structure)], Structure)'
+
+rule: 'A structure must contain more wedge pieces than blue pieces.'
+query: 'generate_valid_structure([more_than(wedge, blue, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(wedge, blue, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of blue pieces pointing at a upside_down piece.'
+query: 'generate_valid_structure([odd_number_of_interaction(blue, upside_down, pointing, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of_interaction(blue, upside_down, pointing, Structure)], Structure)'
+
+rule: 'A structure must contain an even number of upright pieces touching a upside_down piece.'
+query: 'generate_valid_structure([even_number_of_interaction(upright, upside_down, touching, Structure)], Structure)'
+query_n: 'generate_invalid_structure([even_number_of_interaction(upright, upside_down, touching, Structure)], Structure)'
+
+rule: 'A structure must contain more wedge pieces than blue pieces.'
+query: 'generate_valid_structure([more_than(wedge, blue, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(wedge, blue, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 1 block pieces.'
+query: 'generate_valid_structure([exactly(block, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly(block, 1, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 1 pyramid pieces or more wedge pieces than cheesecake pieces.'
+query: 'generate_valid_structure([or([exactly(pyramid, 1, Structure), more_than(wedge, cheesecake, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([exactly(pyramid, 1, Structure), more_than(wedge, cheesecake, Structure)])], Structure)'
+
+rule: 'A structure must contain an even number of blue pieces and an even number of total pieces.'
+query: 'generate_valid_structure([and([even_number_of(blue, Structure), even_number_of(Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([even_number_of(blue, Structure), even_number_of(Structure)])], Structure)'
+
+rule: 'A structure must contain at least 3 yellow pieces and an even number of total pieces.'
+query: 'generate_valid_structure([and([at_least(yellow, 3, Structure), even_number_of(Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([at_least(yellow, 3, Structure), even_number_of(Structure)])], Structure)'
+
+rule: 'A structure must contain more blue pieces than upside_down pieces.'
+query: 'generate_valid_structure([more_than(blue, upside_down, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(blue, upside_down, Structure)], Structure)'
+
+rule: 'A structure must contain at least 1 cheesecake pieces or an even number of yellow pieces.'
+query: 'generate_valid_structure([or([at_least(cheesecake, 1, Structure), even_number_of(yellow, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([at_least(cheesecake, 1, Structure), even_number_of(yellow, Structure)])], Structure)'
+
+rule: 'A structure must contain an odd number of blue pieces and an odd number of red pyramid pieces.'
+query: 'generate_valid_structure([and([odd_number_of(blue, Structure), odd_number_of(red, pyramid, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([odd_number_of(blue, Structure), odd_number_of(red, pyramid, Structure)])], Structure)'
+
+rule: 'A structure must contain at least 3 red pyramid pieces.'
+query: 'generate_valid_structure([at_least(red, pyramid, 3, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least(red, pyramid, 3, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of red upside_down pieces.'
+query: 'generate_valid_structure([odd_number_of(red, upside_down, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of(red, upside_down, Structure)], Structure)'
+
+rule: 'A structure must contain an even number of red pieces.'
+query: 'generate_valid_structure([even_number_of(red, Structure)], Structure)'
+query_n: 'generate_invalid_structure([even_number_of(red, Structure)], Structure)'
+
+rule: 'A structure must contain at least 3 upside_down pieces and an odd number of yellow pieces.'
+query: 'generate_valid_structure([and([at_least(upside_down, 3, Structure), odd_number_of(yellow, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([at_least(upside_down, 3, Structure), odd_number_of(yellow, Structure)])], Structure)'
+
+rule: 'A structure must contain an odd number of blue pieces or an odd number of yellow cheesecake pieces.'
+query: 'generate_valid_structure([or([odd_number_of(blue, Structure), odd_number_of(yellow, cheesecake, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([odd_number_of(blue, Structure), odd_number_of(yellow, cheesecake, Structure)])], Structure)'
+
+rule: 'A structure must contain exactly 1 blue pieces touching a upside_down piece.'
+query: 'generate_valid_structure([exactly_interaction(blue, upside_down, touching, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([exactly_interaction(blue, upside_down, touching, 1, Structure)], Structure)'
+
+rule: 'A structure must contain an odd number of yellow pieces and more cheesecake pieces than red pieces.'
+query: 'generate_valid_structure([and([odd_number_of(yellow, Structure), more_than(cheesecake, red, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([and([odd_number_of(yellow, Structure), more_than(cheesecake, red, Structure)])], Structure)'
+
+rule: 'A structure must contain more blue pieces than block pieces.'
+query: 'generate_valid_structure([more_than(blue, block, Structure)], Structure)'
+query_n: 'generate_invalid_structure([more_than(blue, block, Structure)], Structure)'
+
+rule: 'A structure must contain exactly 2 wedge pieces or at least 1 red block pieces.'
+query: 'generate_valid_structure([or([exactly(wedge, 2, Structure), at_least(red, block, 1, Structure)])], Structure)'
+query_n: 'generate_invalid_structure([or([exactly(wedge, 2, Structure), at_least(red, block, 1, Structure)])], Structure)'
+

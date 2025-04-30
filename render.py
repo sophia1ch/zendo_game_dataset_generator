@@ -13,15 +13,13 @@ from zendo_objects import *
 from generate import generate_structure
 import utils
 from utils import debug
-import shutil
 import json
-
-sys.argv = sys.argv[:1]
 
 import os
 
-def load_zendo_rules(filepath="configs/zendo_rules_fixed.txt"):
+def load_zendo_rules(filepath):
     if not os.path.exists(filepath):
+        print(f"Error: The file {filepath} does not exist.")
         return None, None, None
 
     rules = []
@@ -208,7 +206,7 @@ def threading_prolog_query(args):
         return result
 
 
-def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, negative=False):
+def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, start_rule, negative=False):
     """
     Generates Blender scenes based on Prolog query results and renders them.
 
@@ -303,7 +301,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             ZendoObject.instances.clear()
 
     # ✅ Write to CSV only after all scenes are complete
-    csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+    csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
     with open(csv_file_path, "a", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(examples_data)
@@ -339,12 +337,12 @@ def main(args):
     num_examples = args.num_examples
     num_invalid_examples = args.num_invalid_examples
     generate_invalid_examples = args.generate_invalid_examples
-
+    rules, queries, n_queries = load_zendo_rules(args.zendo_rules_fixed_file)
+    start_rule = getattr(args, "start_rule", 0)
+    end_rule = getattr(args, "end_rule", len(rules) - 1)
     # Write CSV header
-    if os.path.exists(args.output_dir):
-        shutil.rmtree(args.output_dir)
     os.makedirs(args.output_dir, exist_ok=True)
-    csv_file_path = os.path.join(args.output_dir, "ground_truth.csv")
+    csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
     with open(csv_file_path, "w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name", "grounded",
@@ -357,10 +355,9 @@ def main(args):
     total_failed_time = 0.0
     failed_attempts = 0
 
-    r = 0
-    rules, queries, n_queries = load_zendo_rules()
     if rules is None or len(rules) == 0:
-        while r < num_rules:
+        r = start_rule
+        while r <= end_rule:
             print(f"Generating rule {r + 1}/{num_rules}...")
             # get rule in string form and query, negative query in prolog form
             rule, query, n_query = generate_rule(rules_json_file)
@@ -372,7 +369,7 @@ def main(args):
 
             attempt_start = time.time()
             generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, r,
-                                                                                      rule, query, False)
+                                                                                      rule, query, start_rule, False)
             attempt_end = time.time()
 
             # If result is not true, then prolog query took to long, therefore try again
@@ -388,7 +385,7 @@ def main(args):
             if generate_invalid_examples:
                 inv_start = time.time()
                 success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
-                                                                                     r, rule, n_query, True)
+                                                                                     r, rule, n_query, start_rule, True)
                 inv_end = time.time()
 
                 if not success_invalid:
@@ -410,8 +407,8 @@ def main(args):
         print(f"Total execution iterations: {num_rules}")
     else:
         print(f"Using existing rules from fixed_zendo_rules.txt")
-        i = 0
-        while i < len(rules):
+        i = start_rule
+        while i <= end_rule:
             print(f"Generating rule {i + 1}/{len(rules)}...")
             # get rule in string form and query, negative query in prolog form
             rule = rules[i]
@@ -425,13 +422,14 @@ def main(args):
 
             attempt_start = time.time()
             generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, i,
-                                                                                      rule, query, False)
+                                                                                      rule, query, start_rule, False)
             attempt_end = time.time()
 
             # If result is not true, then prolog query took to long, therefore try again
             if not generated_successfully:
                 total_failed_time += (attempt_end - attempt_start)
                 failed_attempts += 1
+                i += 1
                 continue
 
             total_gpu_time += render_time
@@ -441,15 +439,17 @@ def main(args):
             if generate_invalid_examples:
                 inv_start = time.time()
                 success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
-                                                                                     i, rule, n_query, True)
+                                                                                     i, rule, n_query, start_rule, True)
                 inv_end = time.time()
 
                 if not success_invalid:
                     total_failed_time += (inv_end - inv_start)
                     failed_attempts += 1
-                else:
-                    total_gpu_time += render_time_invalid
-                    total_cpu_time += cpu_time_invalid
+                    i += 1
+                    continue
+                
+                total_gpu_time += render_time_invalid
+                total_cpu_time += cpu_time_invalid
 
             i += 1
 
@@ -474,12 +474,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", type=str, default="configs/simple_config.yml",
                         help='config file for rendering')
-    conf = parser.parse_args()
+    parser.add_argument("--start-rule", type=int, default=None,
+                    help="Start index of rules to render (inclusive)")
+    parser.add_argument("--end-rule", type=int, default=None,
+                    help="End index of rules to render (inclusive)")
+    conf = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
     with open(conf.config_file) as f:
         args = yaml.safe_load(f.read())  # load the config file
-
+    print(conf.start_rule, conf.end_rule)
     args = Namespace(**args)
+    if conf.start_rule is not None:
+        args.start_rule = conf.start_rule
+    if conf.end_rule is not None:
+        args.end_rule = conf.end_rule
 
     utils.DEBUG_PRINTING = args.debug_printing
 

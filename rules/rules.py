@@ -633,6 +633,8 @@ def rule_to_prolog(root: RuleNode) -> tuple[str, str]:
         """
 
         # NOTE(kilian): Generates an "or" list of "anded" PrologCall objects
+        if node is None:
+            return
         for child in node.children:
             if len(child.template.prolog) == 0:
                 if node.template.placeholder_id == "QUANTITY":
