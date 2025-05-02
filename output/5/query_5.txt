@@ -1,0 +1,1 @@
+generate_valid_structure([odd_number_of(pyramid, Structure)], Structure)

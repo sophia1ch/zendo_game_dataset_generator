@@ -1,0 +1,1 @@
+scene_name,img_path,rule,query,object_name,grounded,touching,rays,pointing,bounding_box_min_x,bounding_box_min_y,bounding_box_min_z,bounding_box_max_x,bounding_box_max_y,bounding_box_max_z,world_pos_x,world_pos_y,world_pos_z

@@ -1,0 +1,1 @@
+generate_valid_structure([exactly(blue, cheesecake, 2, Structure)], Structure)

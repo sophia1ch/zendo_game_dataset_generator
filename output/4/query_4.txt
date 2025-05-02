@@ -1,0 +1,1 @@
+generate_valid_structure([more_than(block, pyramid, Structure)], Structure)
