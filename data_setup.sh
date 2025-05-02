@@ -20,5 +20,3 @@ done
 
 echo "Flattening complete. All images are in the 'images' folder."
 
-cd ../Master_thesis
-
