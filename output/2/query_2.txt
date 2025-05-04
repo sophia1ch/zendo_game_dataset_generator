@@ -1,1 +1,0 @@
-generate_valid_structure([more_than(yellow, blue, Structure)], Structure)

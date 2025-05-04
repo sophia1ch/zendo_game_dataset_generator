@@ -1,1 +1,0 @@
-generate_invalid_structure([either_or(2, 1, Structure)], Structure)

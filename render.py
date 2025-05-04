@@ -206,26 +206,19 @@ def threading_prolog_query(args):
         return result
 
 
-def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, start_rule, negative=False):
+def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_rule, negative=False):
     """
     Generates Blender scenes based on Prolog query results and renders them.
 
-    This function queries Prolog to generate scene structures, then constructs
-    the corresponding objects in Blender, renders the scene, and saves the data
-    to a CSV file **only once all examples for the rule have been successfully generated**.
-
-    :param args: Configuration arguments for scene generation and rendering.
-    :param collection: The Blender collection to store generated objects.
-    :param num_examples: The number of scene examples to generate.
-    :param rule_idx: Index of the rule being applied.
-    :param rule: The rule description used for scene generation.
-    :param query: The Prolog query defining the scene structure.
-    :param negative: Boolean flag indicating whether negative examples should be generated.
-    :return: True if scenes were successfully generated, False otherwise.
+    This function now internally manages its own Blender collection and cleans it up safely.
     """
 
     total_start = time.time()
     render_time_total = 0.0
+
+    # Create a new collection internally
+    collection = bpy.data.collections.new("Structure")
+    bpy.context.scene.collection.children.link(collection)
 
     rule_output_dir = os.path.join(args.output_dir, f"{rule_idx}")
     os.makedirs(rule_output_dir, exist_ok=True)
@@ -242,13 +235,12 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
     max_total_retries = args.resolve_attempts * num_examples
 
     while i < num_examples:
-        # Generate structure
         scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file))
         if not scenes:
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
                 print(f"❌ Failed to generate scene {i} after too many retries.")
-                return False, 0.0, 0.0
+                break
             continue
 
         structure = scenes[0]
@@ -258,7 +250,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
                 print(f"❌ Too many retries for scene {i}.")
-                return False, 0.0, 0.0
+                break
             continue
 
         seen_structures.add(structure_hashable)
@@ -286,6 +278,17 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
 
+            # Orphan cleanup
+            for block in bpy.data.meshes:
+                if block.users == 0:
+                    bpy.data.meshes.remove(block)
+            for block in bpy.data.materials:
+                if block.users == 0:
+                    bpy.data.materials.remove(block)
+            for block in bpy.data.images:
+                if block.users == 0:
+                    bpy.data.images.remove(block)
+
             print(f"✅ Successfully generated scene {scene_name}.")
             i += 1
 
@@ -294,21 +297,26 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
                 print(f"❌ Too many retries for rule {rule_idx}, aborting.")
-                return False, 0.0, 0.0
+                break
 
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
 
+    # Cleanup: remove collection at the end of generation
+    if collection.name in bpy.data.collections:
+        bpy.data.collections.remove(collection, do_unlink=True)
+
     # ✅ Write to CSV only after all scenes are complete
-    csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
-    with open(csv_file_path, "a", newline="") as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerows(examples_data)
+    if examples_data:
+        csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
+        with open(csv_file_path, "a", newline="") as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerows(examples_data)
 
     total_end = time.time()
     cpu_time = total_end - total_start - render_time_total
-    return True, render_time_total, cpu_time
+    return bool(examples_data), render_time_total, cpu_time
 
 
 def main(args):
@@ -368,7 +376,7 @@ def main(args):
             bpy.context.scene.collection.children.link(collection)
 
             attempt_start = time.time()
-            generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, r,
+            generated_successfully, render_time, cpu_time = generate_blender_examples(args, num_examples, r,
                                                                                       rule, query, start_rule, False)
             attempt_end = time.time()
 
@@ -384,7 +392,7 @@ def main(args):
             # If bool is set for generating also scenes which doesn't fulfill the rule
             if generate_invalid_examples:
                 inv_start = time.time()
-                success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
+                success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, num_invalid_examples,
                                                                                      r, rule, n_query, start_rule, True)
                 inv_end = time.time()
 
@@ -421,7 +429,7 @@ def main(args):
             bpy.context.scene.collection.children.link(collection)
 
             attempt_start = time.time()
-            generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, i,
+            generated_successfully, render_time, cpu_time = generate_blender_examples(args, num_examples, i,
                                                                                       rule, query, start_rule, False)
             attempt_end = time.time()
 
@@ -438,7 +446,7 @@ def main(args):
             # If bool is set for generating also scenes which doesn't fulfill the rule
             if generate_invalid_examples:
                 inv_start = time.time()
-                success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
+                success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, num_invalid_examples,
                                                                                      i, rule, n_query, start_rule, True)
                 inv_end = time.time()
 

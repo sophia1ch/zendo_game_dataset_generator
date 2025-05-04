@@ -1,1 +1,0 @@
-generate_invalid_structure([or([odd_number_of(pyramid, Structure), odd_number_of(Structure)])], Structure)
