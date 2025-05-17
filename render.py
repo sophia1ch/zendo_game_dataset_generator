@@ -13,7 +13,7 @@ from zendo_objects import *
 from generate import generate_structure
 import utils
 from utils import debug
-import json
+import gc
 
 import os
 
@@ -314,6 +314,12 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
     # Cleanup: remove collection at the end of generation
     if collection.name in bpy.data.collections:
         bpy.data.collections.remove(collection, do_unlink=True)
+    for col in bpy.data.collections:
+        if col.users == 0:
+            bpy.data.collections.remove(col)
+    bpy.ops.outliner.orphans_purge(do_recursive=True)
+
+    gc.collect()
 
     # ✅ Write to CSV only after all scenes are complete
     if examples_data:
