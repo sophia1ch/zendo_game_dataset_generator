@@ -189,10 +189,19 @@ def threading_prolog_query(args):
              otherwise returns None.
     """
 
-    # Start a thread to time it
-    pool = get_context("fork").Pool(processes=1)
-    result_async = pool.apply_async(generate_prolog_structure,
-                                    args=args)
+    max_retries = 10
+    for attempt in range(max_retries):
+        try:
+            pool = get_context("fork").Pool(processes=1)
+            break
+        except Exception as e:
+            print(f"Attempt {attempt + 1}/{max_retries} failed to create pool: {e}")
+            time.sleep(5)
+    else:
+        print("Failed to create multiprocessing pool after 10 attempts.")
+        return None
+
+    result_async = pool.apply_async(generate_prolog_structure, args=args)
 
     try:
         result = result_async.get(timeout=6)
@@ -204,7 +213,6 @@ def threading_prolog_query(args):
         pool.close()
         pool.join()
         return result
-
 
 def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_rule, negative=False):
     """
