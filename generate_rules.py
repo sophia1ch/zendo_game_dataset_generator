@@ -28,17 +28,13 @@ def main(args):
     queries = []
     queries_n = []
     while len(rules) < num_rules:
-        print(f"Generating rule {len(rules) + 1}/{num_rules}...")
         # get rule in string form and query, negative query in prolog form
         rule, query, n_query = generate_rule(rules_json_file)
-        print(f"Rule: {rule}")
-        print(f"Query: {query}")
-        print(f"Negative Query: {n_query}")
-        if "Error" not in rule:
+        if "Error" not in rule and "on top" in rule:
             rules.append(rule)
             queries.append(query)
             queries_n.append(n_query)
-    rules_path = os.path.join(args.output_dir, f"rules.txt")
+    rules_path = os.path.join("configs", f"pointing_rules.txt")
     with open(rules_path, "w", encoding="utf-8") as f:
         for rule, query, n_query in zip(rules, queries, queries_n):
             f.write(f"rule: '{rule}'\n")

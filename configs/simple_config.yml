@@ -12,12 +12,13 @@ render_tile_size: 256 # The tile size to use for rendering.
 stacking_offset: 0.1 # Offset for stacking objects ontop of each other
 
 # Config for Rule Generation
-num_rules: 16 # How many random rules should be generated
-num_examples: 7 # How many random scenes should be generated per rule
-generate_invalid_examples: True # Generate for every rule an invalid example which doesn't fulfill the given rule
+num_rules: 150 # How many random rules should be generated
+num_examples: 15 # How many random scenes should be generated per rule
+generate_invalid_examples: False # Generate for every rule an invalid example which doesn't fulfill the given rule
 num_invalid_examples: 7 # How many invalid scenes should be generated per rule
 rules_prolog_file: 'rules/rules.pl' # The prolog file which creates the structure array from a parsed string
 rules_json_file: 'rules/zendo_rules.json'
+zendo_rules_fixed_file: 'configs/rules.txt'
 
 # Config for scene generation
 placement_radius: 9 # Radius for placement of  all objects
