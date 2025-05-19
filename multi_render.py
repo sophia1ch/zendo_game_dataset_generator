@@ -5,6 +5,7 @@ import yaml
 import glob
 import csv
 import re
+import signal
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argparse import Namespace
 
@@ -41,7 +42,7 @@ def merge_ground_truth_csvs(output_dir="output", output_filename="ground_truth.c
                     # Skip header row
                     writer.writerows(rows[1:])
 
-    print(f"✅ Merged {len(csv_files)} files into {output_path}")
+    print(f"Merged {len(csv_files)} files into {output_path}")
 
 def run_blender_subprocess(start_rule, end_rule, config_file):
     return subprocess.Popen([
@@ -89,32 +90,50 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config-file", type=str, default="configs/simple_config.yml",
                         help='config file for rendering')
     parser.add_argument("--processes", type=int, default=1,
-                    help="number of processes to use for rendering")
+                        help="number of processes to use for rendering")
     conf = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
     with open(conf.config_file) as f:
         args = yaml.safe_load(f.read())
     args = Namespace(**args)
+
     num_rules = args.num_rules
     rulesFile, q, qn = load_zendo_rules(args.zendo_rules_fixed_file)
     if rulesFile is not None:
         num_rules = len(rulesFile)
+
     print(f"Number of rules: {num_rules}")
     print(f"Number of processes: {conf.processes}")
-    p = 0
     rules_per_process = num_rules // conf.processes
     print(f"Number of rules per process: {rules_per_process}")
+
     processes = []
-    while p < conf.processes:
-        start = p * rules_per_process
-        end = start + rules_per_process - 1
-        if p == conf.processes - 1:
-            end = num_rules - 1
-        print(f"Process {p}: start = {start}, end = {end}")
-        byte = run_blender_subprocess(start, end, config)
-        processes.append(byte)
-        p += 1
-    for b in processes:
-        b.wait()
-    print("All rendering subprocesses completed.")
-    merge_ground_truth_csvs()
+    try:
+        for p in range(conf.processes):
+            start = p * rules_per_process
+            end = start + rules_per_process - 1
+            if p == conf.processes - 1:
+                end = num_rules - 1
+
+            print(f"Process {p}: start = {start}, end = {end}")
+            proc = run_blender_subprocess(start, end, config)
+            processes.append(proc)
+
+        # Wait for processes to finish
+        for proc in processes:
+            proc.wait()
+
+        print("All rendering subprocesses completed.")
+        merge_ground_truth_csvs()
+
+    except KeyboardInterrupt:
+        print("\nInterrupted by user. Terminating all Blender processes...")
+        for proc in processes:
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except Exception as e:
+                print(f"Could not terminate process cleanly: {e}")
+                proc.kill()
+        print("Cleanup complete. Exiting.")
+        sys.exit(1)
