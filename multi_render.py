@@ -45,12 +45,15 @@ def merge_ground_truth_csvs(output_dir="output", output_filename="ground_truth.c
     print(f"Merged {len(csv_files)} files into {output_path}")
 
 def run_blender_subprocess(start_rule, end_rule, config_file):
-    return subprocess.Popen([
-        "blender", "--background", "--python", "render.py", "--",
-        "--config-file", config_file,
-        "--start-rule", str(start_rule),
-        "--end-rule", str(end_rule)
-    ])
+    return subprocess.Popen(
+        [
+            "blender", "--background", "--python", "render.py", "--",
+            "--config-file", config_file,
+            "--start-rule", str(start_rule),
+            "--end-rule", str(end_rule)
+        ],
+        preexec_fn=os.setsid  # Start in a new process group
+    )
 
 def load_zendo_rules(filepath):
     if not os.path.exists(filepath):
@@ -127,13 +130,13 @@ if __name__ == "__main__":
         merge_ground_truth_csvs()
 
     except KeyboardInterrupt:
-        print("\nInterrupted by user. Terminating all Blender processes...")
-        for proc in processes:
-            try:
-                proc.terminate()
-                proc.wait(timeout=5)
-            except Exception as e:
-                print(f"Could not terminate process cleanly: {e}")
-                proc.kill()
-        print("Cleanup complete. Exiting.")
-        sys.exit(1)
+            print("\nInterrupted by user. Terminating all Blender processes...")
+            for proc in processes:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                except Exception as e:
+                    print(f"Could not terminate process cleanly: {e}")
+                    proc.kill()
+            print("Cleanup complete. Exiting.")
+            sys.exit(1)

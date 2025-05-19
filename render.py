@@ -4,18 +4,33 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argparse import Namespace
 import yaml
-from rules.rules import generate_rule, generate_prolog_structure
+from rules.rules import generate_rule
 import time
 import csv
-import multiprocessing
+import subprocess
 from multiprocessing import get_context
 from zendo_objects import *
 from generate import generate_structure
 import utils
 from utils import debug
 import gc
+import json
 
 import os
+
+global prolog_pool
+
+def init_pool():
+    global prolog_pool
+    ctx = get_context("fork")
+    prolog_pool = ctx.Pool(processes=1, maxtasksperchild=1)
+
+def shutdown_pool():
+    global prolog_pool
+    if prolog_pool is not None:
+        prolog_pool.terminate()
+        prolog_pool.join()
+        prolog_pool = None
 
 def load_zendo_rules(filepath):
     if not os.path.exists(filepath):
@@ -176,43 +191,18 @@ def get_all_scene_objects():
     return object_list
 
 
-def threading_prolog_query(args):
-    """
-    Executes a Prolog query for generating scene structures in a separate process
-    to prevent infinite loops caused by complex queries.
-
-    If the query takes longer than 5 seconds, it is aborted to avoid stalling.
-
-    :param args: A tuple containing the number of examples, the Prolog query,
-                 and the path to the Prolog rules file.
-    :return: The result of the Prolog query if completed within the timeout,
-             otherwise returns None.
-    """
-
-    max_retries = 10
-    for attempt in range(max_retries):
-        try:
-            pool = get_context("fork").Pool(processes=1)
-            break
-        except Exception as e:
-            print(f"Attempt {attempt + 1}/{max_retries} failed to create pool: {e}")
-            time.sleep(5)
-    else:
-        print("Failed to create multiprocessing pool after 10 attempts.")
-        return None
-
-    result_async = pool.apply_async(generate_prolog_structure, args=args)
-
+def call_prolog_subprocess(n, query, prolog_file):
     try:
-        result = result_async.get(timeout=6)
-    except multiprocessing.TimeoutError:
-        debug(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
-        pool.close()
-        return None
-    else:
-        pool.close()
-        pool.join()
-        return result
+        result = subprocess.check_output(
+            ['python3', 'call_generate_prolog.py', str(n), query, prolog_file],
+            timeout=6
+        )
+        return json.loads(result)
+    except subprocess.TimeoutExpired:
+        debug(f"Timeout: Prolog query took too long.")
+    except Exception as e:
+        debug(f"Error in subprocess: {e}")
+    return None
 
 def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_rule, negative=False):
     """
@@ -243,7 +233,8 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
     max_total_retries = args.resolve_attempts * num_examples
 
     while i < num_examples:
-        scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file))
+        scenes = call_prolog_subprocess(1, query, args.rules_prolog_file)
+
         if not scenes:
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
@@ -332,6 +323,10 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
     cpu_time = total_end - total_start - render_time_total
     return bool(examples_data), render_time_total, cpu_time
 
+def handle_interrupt(signum, frame):
+    print("🛑 Caught interrupt signal, shutting down pool and exiting.")
+    shutdown_pool()
+    sys.exit(1)
 
 def main(args):
     """
