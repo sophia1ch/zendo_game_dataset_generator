@@ -26,17 +26,16 @@ def visualize_image_with_bbox(image_path, bbox):
     :param bbox: Bounding box (x_min, y_min, x_max, y_max)
     """
     img_with_box = draw_bbox_on_image(image_path, bbox)
-    plt.figure(figsize=(6, 6))
-    plt.imshow(img_with_box)
-    plt.axis("off")
-    plt.title(f"Bounding Box: {bbox}")
-    plt.show()
+    
+    img_with_box.show()  # Display the image with bounding box
 
 # Example usage:
 # Provide the path to your image and bounding box values
 if __name__ == "__main__":
     # Example hardcoded values — replace with real ones or parse from CSV
-    image_path = "../Master_thesis/training7/0/0_6.png"  # Replace with actual image path
-    bbox = (321,243,345,279)  # Replace with actual bounding box (x_min, y_min, x_max, y_max)
+    image_path = "../Master_thesis/training7/0/0_6_n.png"  # Replace with actual image path
+    im = Image.open(image_path)
+    print(im.size)
+    bbox = (446,233,543,301)  # Replace with actual bounding box (x_min, y_min, x_max, y_max)
 
     visualize_image_with_bbox(image_path, bbox)
