@@ -10,7 +10,7 @@ import csv
 import subprocess
 from multiprocessing import get_context
 from zendo_objects import *
-from generate import generate_structure
+from generate import generate_structure, get_image_bounding_box
 import utils
 from utils import debug
 import gc
@@ -265,12 +265,13 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
             for obj in scene_objects:
                 min_bb, max_bb = obj.get_world_bounding_box()
                 world_pos = obj.get_position()
+                x_min, y_min, x_max, y_max = get_image_bounding_box(obj, bpy.context.scene)
 
                 examples_data.append([
                     scene_name, img_path, rule, query, obj.name, obj.grounded,
                     obj.touching, obj.rays, obj.pointing,
                     min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
-                    world_pos.x, world_pos.y, world_pos.z
+                    world_pos.x, world_pos.y, world_pos.z, x_min, y_min, x_max, y_max
                 ])
 
             for obj in collection.objects:
@@ -365,7 +366,8 @@ def main(args):
         csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name", "grounded",
                              "touching", "rays", "pointing", "bounding_box_min_x", "bounding_box_min_y",
                              "bounding_box_min_z", "bounding_box_max_x", "bounding_box_max_y",
-                             "bounding_box_max_z", "world_pos_x", "world_pos_y", "world_pos_z"])
+                             "bounding_box_max_z", "world_pos_x", "world_pos_y", "world_pos_z",
+                             "image_x_min", "image_y_min", "image_x_max", "image_y_max"])
 
     total_gpu_time = 0.0
     total_cpu_time = 0.0

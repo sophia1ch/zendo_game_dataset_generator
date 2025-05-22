@@ -3,6 +3,8 @@ import re
 from collections import defaultdict, deque
 from math import cos, sin, pi
 from utils import debug
+from bpy_extras.object_utils import world_to_camera_view
+import json
 
 import zendo_objects
 from structure import *
@@ -464,3 +466,42 @@ def check_scene_occlusion(threshold):
         if blocked / total >= threshold:
             return True
     return False
+
+def compute_3d_bbox_corners(min_bb, max_bb):
+    return [
+        mathutils.Vector((x, y, z))
+        for x in [min_bb.x, max_bb.x]
+        for y in [min_bb.y, max_bb.y]
+        for z in [min_bb.z, max_bb.z]
+    ]
+
+def project_point_3d_to_2d(point, cam, scene):
+    co_ndc = world_to_camera_view(scene, cam, point)
+    render = scene.render
+    x = round(co_ndc.x * render.resolution_x)
+    y = round((1.0 - co_ndc.y) * render.resolution_y)
+    return x, y
+
+def get_image_bounding_box(obj, scene):
+    cam = bpy.data.objects["Camera.001"]
+    camera_matrix_world = cam.matrix_world.copy()
+    world_to_camera = camera_matrix_world.inverted()
+    camera_matrix_list = [[el for el in row] for row in world_to_camera]
+    cam_data = {
+        "camera_location": list(cam.location),
+        "camera_matrix": camera_matrix_list,
+        "resolution_x": bpy.context.scene.render.resolution_x,
+        "resolution_y": bpy.context.scene.render.resolution_y
+    }
+
+    with open("camera_params.json", "w") as f:
+        json.dump(cam_data, f, indent=2)
+    min_bb, max_bb = obj.get_world_bounding_box()
+    corners = compute_3d_bbox_corners(min_bb, max_bb)
+    projected = [project_point_3d_to_2d(corner, cam, scene) for corner in corners]
+    xs, ys = zip(*projected)
+    x_min = max(0, min(xs))
+    x_max = min(scene.render.resolution_x - 1, max(xs))
+    y_min = max(0, min(ys))
+    y_max = min(scene.render.resolution_y - 1, max(ys))
+    return x_min, y_min, x_max, y_max
