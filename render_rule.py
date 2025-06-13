@@ -213,7 +213,7 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
 
     while i < num_examples:
         # Generate structure
-        scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file))
+        scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file)) # Outputs list of pieces
         print("found: ", scenes)
         if not scenes:
             retry_attempts += 1

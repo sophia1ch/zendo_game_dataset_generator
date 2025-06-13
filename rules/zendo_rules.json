@@ -126,14 +126,9 @@
     }
   ],
   "ORIENTATION": [
-  {
-    "group": "flat",
-    "includes": ["flat", "cheesecake"]
-  },
-  {
-    "group": "vertical",
-    "includes": ["upright", "upside_down"]
-  },
+  "vertical",
+  "horizontal",
+  "flat",
   "upright",
   "upside_down",
   "cheesecake"

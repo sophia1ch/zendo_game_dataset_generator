@@ -211,19 +211,12 @@ def generate_creation(args, instructions, index, collection):
     action = instruction['action']
     # name = f"{idx}_{shape}"
 
-    if orientation == 'vertical':
-        if shape == 'block':
-            orientation = random.choice(['upright', 'upside_down'])
-        else:
-            orientation = 'upright'
-
     if shape == 'block':
         obj = zendo_objects.Block(args, idx, color, orientation)
     elif shape == 'wedge':
         obj = zendo_objects.Wedge(args, idx, color, orientation)
     elif shape == 'pyramid':
         obj = zendo_objects.Pyramid(args, idx, color, orientation)
-
     collection.objects.link(obj.obj)
 
     if args.random_object_rotation:
@@ -483,6 +476,7 @@ def project_point_3d_to_2d(point, cam, scene):
     return x, y
 
 def get_image_bounding_box(obj, scene):
+    bpy.context.view_layer.update()
     cam = bpy.data.objects["Camera.001"]
     camera_matrix_world = cam.matrix_world.copy()
     world_to_camera = camera_matrix_world.inverted()
