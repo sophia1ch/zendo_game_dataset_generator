@@ -5,6 +5,7 @@ orientation(flat).
 orientation(upright).
 orientation(upside_down).
 orientation(cheesecake).
+orientation(doorstop).
 %orientation(weird).
 
 color(blue).
@@ -34,31 +35,6 @@ generate_valid_structure(Checks, Structure) :-
     generate_items(N, N, Structure),
     interaction_constraint_check(Structure),
     (and(Checks) -> !; fail).
-
-% Generating with a limit, if the given query is to complicated (probability of generating it, is to low) then stop after a specific number of attempts
-% Not so easy to implement (currently not complete), because the recursive function doesn`t work with generating new structures every new attempt.
-% That is because the function writes Structure in the first loop and in the later loop it is already written, what concludes in errors.
-% Changing the output to a new `Variable` doesn`t work either, because Structure is the variable which is tested in `Checks`
-% Currently this error is captured by the generating_scene function and threading
-%generate_valid_structure(Checks, Structure) :-
-%    generate_valid_structure_limit(Checks, Structure, 1000).
-%
-%generate_valid_structure_limit(_, _, 0) :-
-%    write("End"), nl,
-%    !,
-%    fail.
-%
-%generate_valid_structure_limit(Checks, Structure, Attempts) :-
-%    Attempts > 0,
-%    NextAttempts is Attempts - 1,
-%    write("tried"), nl,
-%    generate_structure(Structure),
-%    write(Attempts), write("generated: "), write(Structure), nl,
-%    (interaction_constraint_check(Structure) ->
-%        (and(Checks) -> !; generate_valid_structure_limit(Checks, Structure, NextAttempts));
-%        generate_valid_structure_limit(Checks, Structure, NextAttempts)
-%    ).
-
 
 % Generate repeatedly until a structure doesnt fulfills the checks
 generate_invalid_structure(Checks, Structure) :-
@@ -171,9 +147,9 @@ random_orientation(Shape, Orientation) :-
     %findall(O, orientation(O), Orientations),
     % exclude specific cases for the different shapes
     findall(O, (orientation(O), (
-        (Shape = block, O \= cheesecake);
-        (Shape = pyramid, O \= cheesecake);
-        (Shape = wedge, true)
+        (Shape = block, O \= cheesecake, O \= doorstop);
+        (Shape = pyramid, O \= cheesecake, O \= doorstop);
+        (Shape = wedge, O \= flat)
     )), ValidOrientations),
     random_member(Orientation, ValidOrientations).
 
@@ -206,7 +182,7 @@ item_has_attribute(Attr, item(_,C,S,O,I)) :-
         (Attr = vertical, (O = upright ; O = upside_down))
     ;
         % Match horizontal group
-        (Attr = horizontal, (O = flat ; O = cheesecake))
+        (Attr = flat, (O = flat ; O = cheesecake; O = doorstop))
     ;
         % Direct match of orientation
         Attr = O
@@ -221,13 +197,6 @@ item_has_two_attributes(A1, A2, Item) :-
     item_has_attribute(A1, Item),
     item_has_attribute(A2, Item).
 
-item_has_two_attributes(A1, grounded, Item) :-
-     % Check if one of the attributes is grounded, if so we have a special case
-     item_has_attribute(A1, Item),
-     (item_has_attribute(grounded, Item);
-     item_has_attribute(pointing, Item);
-     item_has_attribute(touching, Item)).
-
 count_attribute(Attr, Structure, Count) :-
     include(item_has_attribute(Attr), Structure, Filtered),
     length(Filtered, Count).
@@ -235,6 +204,29 @@ count_attribute(Attr, Structure, Count) :-
 count_multiple_attributes(A1, A2, Structure, Count) :-
     include(item_has_two_attributes(A1, A2), Structure, Filtered),
     length(Filtered, Count).
+
+% Special case: grounded or ungrounded
+count_interaction_matching_items(QAttr, grounded, Structure, Count) :-
+    findall(SourceId,
+        (
+            member(item(SourceId, SC, SS, SO, Interaction), Structure),
+            functor(Interaction, F, _),
+            F \= on_top_of,
+            item_has_attribute(QAttr, item(SourceId, SC, SS, SO, Interaction))
+        ),
+        Matches),
+    sort(Matches, Unique),
+    length(Unique, Count).
+
+count_interaction_matching_items(QAttr, ungrounded, Structure, Count) :-
+    findall(SourceId,
+        (
+            member(item(SourceId, SC, SS, SO, on_top_of(_)), Structure),
+            item_has_attribute(QAttr, item(SourceId, SC, SS, SO, on_top_of(_)))
+        ),
+        Matches),
+    sort(Matches, Unique),
+    length(Unique, Count).
 
 % Counts how many unique items have QAttr and are in an interaction with a target with IAttr.
 count_interaction_matching_items(QAttr, IAttr, touching, Structure, Count) :-
@@ -272,6 +264,13 @@ count_interaction_matching_items(QAttr, IAttr, InteractionName, Structure, Count
     sort(Matches, Unique),
     length(Unique, Count).
 
+has_interaction_attribute(QAttr, grounded, _Structure, item(Id,C,S,O,I)) :-
+    item_has_attribute(QAttr, item(Id,C,S,O,I)),
+    \+ (I = on_top_of(_)).
+
+has_interaction_attribute(QAttr, ungrounded, Structure, item(_,C,S,O,on_top_of(_))) :-
+    member(item(_,C,S,O,on_top_of(_)), Structure),
+    item_has_attribute(QAttr, item(_,C,S,O,on_top_of(_))).
 % Check if an item has QAttr and an interaction of type InteractionName that leads to another item with IAttr
 has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, item(_,C,S,O,I)) :-
     item_has_attribute(QAttr, item(_,C,S,O,I)),
@@ -452,8 +451,19 @@ upside_down_stack_has_block_base(ItemId, Structure) :-
     member(item(ItemId, _, pyramid, upside_down, on_top_of(ParentId)), Structure),
     upside_down_stack_has_block_base(ParentId, Structure).
 
+attribute_type(A, color) :- color(A), !.
+attribute_type(A, shape) :- shape(A), !.
+attribute_type(A, orientation) :- orientation(A), !.
 %%% Rules %%%
 % Check predicates (pure checks, no generation)
+zero(Attr, Structure) :-
+    count_attribute(Attr, Structure, C),
+    C =:= 0.
+
+zero(A1, A2, Structure) :-
+    count_multiple_attributes(A1, A2, Structure, C),
+    C =:= 0.
+
 at_least(Attr, N, Structure) :-
     count_attribute(Attr, Structure, C),
     C >= N.
@@ -467,6 +477,14 @@ at_least_interaction(QAttr, IAttr, InteractionName, N, Structure) :-
     findall(Item,
         (member(Item, Structure),
         has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, Item)),
+        Filtered),
+    length(Filtered, Count),
+    Count >= N.
+
+at_least_interaction(QAttr, InteractionName, N, Structure) :-
+    findall(Item,
+        (member(Item, Structure),
+        has_interaction_attribute(QAttr, InteractionName, Structure, Item)),
         Filtered),
     length(Filtered, Count),
     Count >= N.
@@ -487,6 +505,38 @@ exactly_interaction(QAttr, IAttr, InteractionName, N, Structure) :-
         Filtered),
     length(Filtered, Count),
     Count =:= N.
+
+exactly_interaction(QAttr, InteractionName, N, Structure) :-
+    findall(Item,
+        (member(Item, Structure),
+        has_interaction_attribute(QAttr, InteractionName, Structure, Item)),
+        Filtered),
+    length(Filtered, Count),
+    Count =:= N.
+
+exclusively(Attr, Structure) :-
+    % For every item in the structure, Attr must hold
+    forall(member(Item, Structure), item_has_attribute(Attr, Item)),
+
+    % Ensure no other attribute of the same type appears
+    (
+        color(Attr) ->
+            findall(C, color(C), Colors),
+            exclude(==(Attr), Colors, OtherColors),
+            \+ (member(Other, OtherColors), member(Item, Structure), item_has_attribute(Other, Item))
+    ;
+        shape(Attr) ->
+            findall(S, shape(S), Shapes),
+            exclude(==(Attr), Shapes, OtherShapes),
+            \+ (member(Other, OtherShapes), member(Item, Structure), item_has_attribute(Other, Item))
+    ;
+        orientation(Attr) ->
+            findall(O, orientation(O), Orients),
+            exclude(==(Attr), Orients, OtherOrients),
+            \+ (member(Other, OtherOrients), member(Item, Structure), item_has_attribute(Other, Item))
+    ;
+        true
+    ).
 
 more_than(A1, A2, Structure) :-
     count_attribute(A1, Structure, C1),
@@ -514,6 +564,10 @@ odd_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
     count_interaction_matching_items(QAttr, IAttr, InteractionName, Structure, C),
     1 is C mod 2.
 
+odd_number_of_interaction(QAttr, InteractionName, Structure) :-
+    count_interaction_matching_items(QAttr, InteractionName, Structure, C),
+    1 is C mod 2.
+
 even_number_of(Attr, Structure) :-
     count_attribute(Attr, Structure, C),
     C \= 0,
@@ -526,6 +580,11 @@ even_number_of(A1, A2, Structure) :-
 
 even_number_of_interaction(QAttr, IAttr, InteractionName, Structure) :-
     count_interaction_matching_items(QAttr, IAttr, InteractionName, Structure, C),
+    C \= 0,
+    0 is C mod 2.
+
+even_number_of_interaction(QAttr, InteractionName, Structure) :-
+    count_interaction_matching_items(QAttr, InteractionName, Structure, C),
     C \= 0,
     0 is C mod 2.
 
@@ -542,6 +601,26 @@ or([C|_]) :-
     call(C).
 or([_|Cs]) :-
     or(Cs).
+
+all_three_shapes(Structure) :-
+    findall(Shape, shape(Shape), Shapes),
+    forall(
+        member(S, Shapes),
+        (
+            count_attribute(S, Structure, C),
+            C > 0
+        )
+    ).
+
+all_three_colors(Structure) :-
+    findall(Color, color(Color), Colors),
+    forall(
+        member(C, Colors),
+        (
+            count_attribute(C, Structure, Count),
+            Count > 0
+        )
+    ).
 
 odd(N) :- 1 is N mod 2.
 even(N) :- 0 is N mod 2.

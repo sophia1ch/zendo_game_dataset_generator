@@ -4,16 +4,14 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argparse import Namespace
 import yaml
-from rules.rules import generate_rule, generate_prolog_structure
 import time
 import csv
-import multiprocessing
-from multiprocessing import get_context
+import subprocess
 from zendo_objects import *
-from generate import generate_structure
+from generate import generate_structure, get_image_bounding_box
 import utils
 from utils import debug
-import shutil
+import gc
 import json
 
 sys.argv = sys.argv[:1]
@@ -146,62 +144,39 @@ def get_all_scene_objects():
     return object_list
 
 
-def threading_prolog_query(args):
-    """
-    Executes a Prolog query for generating scene structures in a separate process
-    to prevent infinite loops caused by complex queries.
-
-    If the query takes longer than 5 seconds, it is aborted to avoid stalling.
-
-    :param args: A tuple containing the number of examples, the Prolog query,
-                 and the path to the Prolog rules file.
-    :return: The result of the Prolog query if completed within the timeout,
-             otherwise returns None.
-    """
-
-    # Start a thread to time it
-    pool = get_context("fork").Pool(processes=1)
-    result_async = pool.apply_async(generate_prolog_structure,
-                                    args=args)
-
+def call_prolog_subprocess(n, query, prolog_file):
     try:
-        result = result_async.get(timeout=7)
-    except multiprocessing.TimeoutError:
-        debug(f"Timeout: Generating the sample for '{args[1]}' took longer than 5 seconds!")
-        pool.close()
-        return None
-    else:
-        pool.close()
-        pool.join()
-        return result
+        result = subprocess.check_output(
+            ['python3', 'call_generate_prolog.py', str(n), query, prolog_file],
+            timeout=6
+        )
+        return json.loads(result)
+    except subprocess.TimeoutExpired:
+        debug(f"Timeout: Prolog query took too long.")
+    except Exception as e:
+        debug(f"Error in subprocess: {e}")
+    return None
 
 
-def generate_blender_examples(args, collection, num_examples, rule_idx, rule, query, negative=False):
+def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_rule, negative=False):
     """
     Generates Blender scenes based on Prolog query results and renders them.
 
-    This function queries Prolog to generate scene structures, then constructs
-    the corresponding objects in Blender, renders the scene, and saves the data
-    to a CSV file **only once all examples for the rule have been successfully generated**.
-
-    :param args: Configuration arguments for scene generation and rendering.
-    :param collection: The Blender collection to store generated objects.
-    :param num_examples: The number of scene examples to generate.
-    :param rule_idx: Index of the rule being applied.
-    :param rule: The rule description used for scene generation.
-    :param query: The Prolog query defining the scene structure.
-    :param negative: Boolean flag indicating whether negative examples should be generated.
-    :return: True if scenes were successfully generated, False otherwise.
+    This function now internally manages its own Blender collection and cleans it up safely.
     """
 
     total_start = time.time()
     render_time_total = 0.0
 
-    rule_output_dir_spec = os.path.join(args.output_dir_spec, f"{rule_idx}")
-    os.makedirs(rule_output_dir_spec, exist_ok=True)
+    # Create a new collection internally
+    collection = bpy.data.collections.new("Structure")
+    bpy.context.scene.collection.children.link(collection)
+
+    rule_output_dir = os.path.join(args.output_dir, f"{rule_idx}")
+    os.makedirs(rule_output_dir, exist_ok=True)
 
     rule_name = f"query_{rule_idx}_n" if negative else f"query_{rule_idx}"
-    query_file_path = os.path.join(rule_output_dir_spec, rule_name + ".txt")
+    query_file_path = os.path.join(rule_output_dir, rule_name + ".txt")
     with open(query_file_path, "w") as f:
         f.write(query)
 
@@ -212,14 +187,13 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
     max_total_retries = args.resolve_attempts * num_examples
 
     while i < num_examples:
-        # Generate structure
-        scenes = threading_prolog_query(args=(1, query, args.rules_prolog_file)) # Outputs list of pieces
-        print("found: ", scenes)
+        scenes = call_prolog_subprocess(1, query, args.rules_prolog_file)
+
         if not scenes:
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
                 print(f"❌ Failed to generate scene {i} after too many retries.")
-                return False, 0.0, 0.0
+                break
             continue
 
         structure = scenes[0]
@@ -229,15 +203,15 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
                 print(f"❌ Too many retries for scene {i}.")
-                return False, 0.0, 0.0
+                break
             continue
 
         seen_structures.add(structure_hashable)
         scene_name = f"{rule_idx}_{i}_n" if negative else f"{rule_idx}_{i}"
-        img_path = os.path.join(rule_output_dir_spec, scene_name + ".png")
+        img_path = os.path.join(rule_output_dir, scene_name + ".png")
 
         try:
-            generate_structure(args, structure, collection)
+            generate_structure(args, structure, collection, grounded="grounded" in rule)
             render_time = render(args, str(rule_idx), scene_name)
             render_time_total += render_time
 
@@ -245,17 +219,29 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             for obj in scene_objects:
                 min_bb, max_bb = obj.get_world_bounding_box()
                 world_pos = obj.get_position()
+                x_min, y_min, x_max, y_max = get_image_bounding_box(obj, bpy.context.scene)
 
                 examples_data.append([
                     scene_name, img_path, rule, query, obj.name, obj.grounded,
                     obj.touching, obj.rays, obj.pointing,
                     min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
-                    world_pos.x, world_pos.y, world_pos.z
+                    world_pos.x, world_pos.y, world_pos.z, x_min, y_min, x_max, y_max
                 ])
 
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
+
+            # Orphan cleanup
+            for block in bpy.data.meshes:
+                if block.users == 0:
+                    bpy.data.meshes.remove(block)
+            for block in bpy.data.materials:
+                if block.users == 0:
+                    bpy.data.materials.remove(block)
+            for block in bpy.data.images:
+                if block.users == 0:
+                    bpy.data.images.remove(block)
 
             print(f"✅ Successfully generated scene {scene_name}.")
             i += 1
@@ -265,21 +251,31 @@ def generate_blender_examples(args, collection, num_examples, rule_idx, rule, qu
             retry_attempts += 1
             if retry_attempts >= max_total_retries:
                 print(f"❌ Too many retries for rule {rule_idx}, aborting.")
-                return False, 0.0, 0.0
+                break
 
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
             ZendoObject.instances.clear()
 
-    # ✅ Write to CSV only after all scenes are complete
-    csv_file_path = os.path.join(args.output_dir_spec, "ground_truth.csv")
-    with open(csv_file_path, "a", newline="") as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerows(examples_data)
+    # Cleanup: remove collection at the end of generation
+    if collection.name in bpy.data.collections:
+        bpy.data.collections.remove(collection, do_unlink=True)
+    for col in bpy.data.collections:
+        if col.users == 0:
+            bpy.data.collections.remove(col)
+    bpy.ops.outliner.orphans_purge(do_recursive=True)
+
+    gc.collect()
+
+    if examples_data:
+        csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
+        with open(csv_file_path, "a", newline="") as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerows(examples_data)
 
     total_end = time.time()
     cpu_time = total_end - total_start - render_time_total
-    return True, render_time_total, cpu_time
+    return bool(examples_data), render_time_total, cpu_time
 
 
 def main(args):
@@ -318,7 +314,8 @@ def main(args):
         csv_writer.writerow(["scene_name", "img_path", "rule", "query", "object_name", "grounded",
                              "touching", "rays", "pointing", "bounding_box_min_x", "bounding_box_min_y",
                              "bounding_box_min_z", "bounding_box_max_x", "bounding_box_max_y",
-                             "bounding_box_max_z", "world_pos_x", "world_pos_y", "world_pos_z"])
+                             "bounding_box_max_z", "world_pos_x", "world_pos_y", "world_pos_z",
+                             "image_x_min", "image_y_min", "image_x_max", "image_y_max"])
 
     total_gpu_time = 0.0
     total_cpu_time = 0.0
@@ -336,8 +333,8 @@ def main(args):
     bpy.context.scene.collection.children.link(collection)
 
     attempt_start = time.time()
-    generated_successfully, render_time, cpu_time = generate_blender_examples(args, collection, num_examples, r,
-                                                                                  rule, query, False)
+    generated_successfully, render_time, cpu_time = generate_blender_examples(args, num_examples, r,
+                                                                                  rule, query, 0, False)
     attempt_end = time.time()
 
     # If result is not true, then prolog query took to long, therefore try again
@@ -352,8 +349,8 @@ def main(args):
     # If bool is set for generating also scenes which doesn't fulfill the rule
     if generate_invalid_examples:
         inv_start = time.time()
-        success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, collection, num_invalid_examples,
-                                                                                 r, rule, n_query, True)
+        success_invalid, render_time_invalid, cpu_time_invalid = generate_blender_examples(args, num_invalid_examples,
+                                                                                 r, rule, n_query, 0, True)
         inv_end = time.time()
 
         if not success_invalid:

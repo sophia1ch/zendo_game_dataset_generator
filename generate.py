@@ -126,38 +126,44 @@ def get_grounded(instructions):
 
 def get_relations(instructions):
     """
-    Extracts and sorts objects based on their dependencies in relation to other objects.
-
-    :param instructions: A list of dictionaries representing object instructions.
-    :return: A sorted list of objects based on dependency resolution.
+    Sorts objects based on interaction dependencies (e.g., on_top_of).
+    Ensures that objects are ordered such that their targets are placed before them.
     """
 
-    related_objects = [i for i in instructions if i.get('action') != 'grounded']
+    def extract_target_id(action_str):
+        if '(' in action_str and ')' in action_str:
+            try:
+                return int(action_str.split('(')[1].split(')')[0])
+            except Exception:
+                return None
+        return None
 
-    dependencies = defaultdict(list)
-    id_to_object = {obj['id']: obj for obj in instructions}
-    dependents_count = {obj['id']: 0 for obj in instructions}
+    id_to_instruction = {obj['id']: obj for obj in instructions}
+    graph = defaultdict(list)
+    in_degree = defaultdict(int)
 
     for obj in instructions:
-        action = obj['action']
-        if '(' in action and ')' in action:
-            dep_id = int(action.split('(')[-1].split(')')[0])
-            dependencies[dep_id].append(obj['id'])
-            dependents_count[obj['id']] += 1
+        source_id = obj['id']
+        target_id = extract_target_id(obj['action'])
+        if target_id is not None and target_id in id_to_instruction:
+            graph[target_id].append(source_id)  # target must come before source
+            in_degree[source_id] += 1
+        else:
+            in_degree[source_id]  # ensure every node is in the dict
 
-    # Topological sorting
-    sorted_objects = []
-    queue = deque([obj_id for obj_id, count in dependents_count.items() if count == 0])
+    # Perform topological sort
+    queue = deque([i for i in instructions if in_degree[i['id']] == 0])
+    sorted_result = []
 
     while queue:
         current = queue.popleft()
-        sorted_objects.append(id_to_object[current])
-        for dependent in dependencies[current]:
-            dependents_count[dependent] -= 1
-            if dependents_count[dependent] == 0:
-                queue.append(dependent)
+        sorted_result.append(current)
+        for dependent_id in graph[current['id']]:
+            in_degree[dependent_id] -= 1
+            if in_degree[dependent_id] == 0:
+                queue.append(id_to_instruction[dependent_id])
 
-    return sorted_objects
+    return sorted_result
 
 
 def get_free_face(args, obj: ZendoObject):
@@ -225,7 +231,7 @@ def generate_creation(args, instructions, index, collection):
     return obj
 
 
-def generate_structure(args, items: list[str], collection, attempt: int = 1):
+def generate_structure(args, items: list[str], collection, attempt: int = 1, grounded=False):
     """
     Generates a structured scene based on a set of item descriptions and configuration parameters.
 
@@ -328,7 +334,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                     #             face = random.choice(faces)
                     #     else:
                     #         face = random.choice(faces)
-                    if random_faces:
+                    if random_faces and not grounded:
                         face = random.choice(faces)
                     else:
                         face = faces[0]
@@ -382,6 +388,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
                 integrity = False
 
     if check_scene_occlusion(los_threshold):
+        debug("Scene is occluded, trying to generate again!")
         integrity = False
 
     debug(f"Integrity: {integrity}")
@@ -391,7 +398,7 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1):
             bpy.data.objects.remove(obj, do_unlink=True)
         ZendoObject.instances.clear()
 
-        generate_structure(args, items, collection, attempt=attempt + 1)
+        generate_structure(args, items, collection, attempt=attempt + 1, grounded=grounded)
 
 
 def check_scene_occlusion(threshold):
@@ -445,12 +452,6 @@ def check_scene_occlusion(threshold):
                     if (((obj_above and "Pyramid" in hit_obj.name) or (hit_above and "Pyramid" in obj.name))
                         or (obj_above and "Block" in hit_obj.name and "upside_down" in hit_obj.name and "Pyramid" in obj.name and "upside_down" in obj.name)
                         or (hit_above and "Block" in obj.name and "upside_down" in obj.name and "Pyramid" in hit_obj.name and "upside_down" in hit_obj.name)):
-                        continue
-
-                blocked += 1
-                # If one is above the other AND the lower one is a pyramid or both are upside down and the bottom one is a block → allow
-                if aligned:
-                    if (obj_above and "Pyramid" in hit_obj.name) or (hit_above and "Pyramid" in obj.name):
                         continue
 
                 blocked += 1

@@ -8,29 +8,12 @@ from rules.rules import generate_rule
 import time
 import csv
 import subprocess
-from multiprocessing import get_context
 from zendo_objects import *
 from generate import generate_structure, get_image_bounding_box
 import utils
 from utils import debug
 import gc
 import json
-
-import os
-
-global prolog_pool
-
-def init_pool():
-    global prolog_pool
-    ctx = get_context("fork")
-    prolog_pool = ctx.Pool(processes=1, maxtasksperchild=1)
-
-def shutdown_pool():
-    global prolog_pool
-    if prolog_pool is not None:
-        prolog_pool.terminate()
-        prolog_pool.join()
-        prolog_pool = None
 
 def load_zendo_rules(filepath):
     if not os.path.exists(filepath):
@@ -257,7 +240,7 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
         img_path = os.path.join(rule_output_dir, scene_name + ".png")
 
         try:
-            generate_structure(args, structure, collection)
+            generate_structure(args, structure, collection, grounded="grounded" in rule)
             render_time = render(args, str(rule_idx), scene_name)
             render_time_total += render_time
 
@@ -313,7 +296,6 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
 
     gc.collect()
 
-    # ✅ Write to CSV only after all scenes are complete
     if examples_data:
         csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
         with open(csv_file_path, "a", newline="") as csvfile:
@@ -323,11 +305,6 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
     total_end = time.time()
     cpu_time = total_end - total_start - render_time_total
     return bool(examples_data), render_time_total, cpu_time
-
-def handle_interrupt(signum, frame):
-    print("🛑 Caught interrupt signal, shutting down pool and exiting.")
-    shutdown_pool()
-    sys.exit(1)
 
 def main(args):
     """
@@ -357,7 +334,10 @@ def main(args):
     generate_invalid_examples = args.generate_invalid_examples
     rules, queries, n_queries = load_zendo_rules(args.zendo_rules_fixed_file)
     start_rule = getattr(args, "start_rule", 0)
-    end_rule = getattr(args, "end_rule", len(rules) - 1)
+    if rules is None:
+        end_rule = getattr(args, "end_rule", args.num_rules - 1)
+    else:
+        end_rule = getattr(args, "end_rule", len(rules) - 1)
     # Write CSV header
     os.makedirs(args.output_dir, exist_ok=True)
     csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")

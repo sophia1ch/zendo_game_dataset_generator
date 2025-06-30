@@ -138,7 +138,7 @@ class ZendoObject:
 
         :return: A Vector representing the object's location.
         """
-
+        bpy.context.view_layer.update()
         return self.obj.location
 
     def get_scaled_and_rotated_vertices(self):
@@ -410,7 +410,7 @@ class Wedge(ZendoObject):
         "upright": Quaternion(Vector((0.0, 0.0, 0.0)), math.radians(0)),
         "upside_down": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(180)),
         "cheesecake": Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(90)),
-        "flat": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(104))
+        "doorstop": Quaternion(Vector((0.0, 1.0, 0.0)), math.radians(104))
     }
 
     def __init__(self, args, idx: int, color: str, pose: str):

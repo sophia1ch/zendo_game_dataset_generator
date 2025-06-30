@@ -63,10 +63,9 @@ def on_top(object_1: ZendoObject, target: ZendoObject, margin: float = 0.0):
     """
 
     bpy.context.view_layer.update()
-    if type(target) is Pyramid and object_1.pose == 'upright' and target.pose == 'upright':
+    if type(target) is Pyramid and object_1.pose == 'upright' and target.pose == 'upright' or \
+        type(object_1) is Pyramid and object_1.pose == 'upside_down' and target.pose == 'upside_down':
         nested(object_1, target)
-    elif type(object_1) is Pyramid and object_1.pose == 'upside_down' and target.pose == 'upside_down':
-        nested(target, object_1)
     else:
         touching(object_1, target, face='top', margin=margin)
 
@@ -172,9 +171,11 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
             offset -= margin
         # Move object_1 to touch object_2
         if ((object_1.pose == 'upside_down' and object_2.pose == 'upright') or (object_2.pose == 'upside_down' and object_1.pose == 'upright')) and object_2.shape == "pyramid" and object_1.shape == "pyramid":
-            offset = offset * 0.5
+            offset = offset * 0.51
         if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'wedge' and object_2.shape == "pyramid") or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'wedge' and object_1.shape == "pyramid"):
-            offset = offset * 0.5
+            offset = offset * 0.51
+        if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'pyramid' and object_2.shape == "wedge") or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'pyramid' and object_1.shape == "wedge"):
+            offset = offset * 0.51
         object_1.obj.location[axis_index] += offset
         if offset is None:
            raise ValueError(
@@ -200,25 +201,41 @@ def nested(object_1: ZendoObject, object_2: ZendoObject):
     """
 
     # Move the first object inside the second one
-    bpy.context.view_layer.update()
-    obj_2_pos = object_2.get_position()
-    object_1.set_position(obj_2_pos)
+    if object_2.shape == "pyramid" and object_2.pose == "upright":
+        bpy.context.view_layer.update()
+        obj_2_pos = object_2.get_position()
+        object_1.set_position(obj_2_pos)
 
-    # Apply the same rotation to the first object
-    obj_2_rot = object_2.obj.rotation_quaternion
-    object_1.set_rotation_quaternion(obj_2_rot)
+        # Apply the same rotation to the first object
+        obj_2_rot = object_2.obj.rotation_quaternion
+        object_1.set_rotation_quaternion(obj_2_rot)
 
-    mesh = object_2.obj.data
-    top_vertex = max(mesh.vertices, key=lambda v: v.co.z)
-    top_world = object_2.obj.matrix_world @ top_vertex.co
-    origin_world = object_2.obj.matrix_world @ mathutils.Vector((0, 0, 0))
+        mesh = object_2.obj.data
+        top_vertex = max(mesh.vertices, key=lambda v: v.co.z)
+        top_world = object_2.obj.matrix_world @ top_vertex.co
+        origin_world = object_2.obj.matrix_world @ mathutils.Vector((0, 0, 0))
 
-    # Create a vector from the origin to the top vertex
-    vector_to_top = top_world - origin_world
+        # Create a vector from the origin to the top vertex
+        vector_to_top = top_world - origin_world
 
-    # Move the first object alongside the top vector for offset
-    scaled_vector = vector_to_top * 0.4
-    object_1.move(scaled_vector)
+        # Move the first object alongside the top vector for offset
+        scaled_vector = vector_to_top * 0.4
+        object_1.move(scaled_vector)
+    else:
+        bpy.context.view_layer.update()
+        obj_2_pos = object_2.get_position()
+        object_1.set_position(obj_2_pos)
+
+        obj_2_rot = object_2.obj.rotation_quaternion
+        object_1.set_rotation_quaternion(obj_2_rot)
+
+        mesh = object_1.obj.data
+        top_vertex = max(mesh.vertices, key=lambda v: v.co.z)
+        top_world = object_2.obj.matrix_world @ top_vertex.co
+        origin_world = object_2.obj.matrix_world @ mathutils.Vector((0, 0, 0))
+        vector_to_top = top_world - origin_world
+        scaled_vector = -vector_to_top * 0.4
+        object_1.move(scaled_vector)
     # Update properties of objects to reflect relation
     object_2.nested = object_1.obj.name
     object_1.nests = object_2.obj.name

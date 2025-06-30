@@ -12,10 +12,10 @@ render_tile_size: 256 # The tile size to use for rendering.
 stacking_offset: 0.1 # Offset for stacking objects ontop of each other
 
 # Config for Rule Generation
-num_rules: 150 # How many random rules should be generated
-num_examples: 15 # How many random scenes should be generated per rule
+num_rules: 300 # How many random rules should be generated
+num_examples: 4 # How many random scenes should be generated per rule
 generate_invalid_examples: False # Generate for every rule an invalid example which doesn't fulfill the given rule
-num_invalid_examples: 7 # How many invalid scenes should be generated per rule
+num_invalid_examples: 2 # How many invalid scenes should be generated per rule
 rules_prolog_file: 'rules/rules.pl' # The prolog file which creates the structure array from a parsed string
 rules_json_file: 'rules/zendo_rules.json'
 zendo_rules_fixed_file: 'configs/rules.txt'
@@ -35,9 +35,9 @@ los_threshold: 0.50 # Threshold for line of sight
 # rule: 'A structure must contain an odd number of upside down pyramid pieces.'
 # query: 'generate_valid_structure([odd_number_of(upside_down, pyramid, Structure)], Structure)'
 # query_n: 'generate_invalid_structure([odd_number_of(upside_down, pyramid, Structure)], Structure)'
-rule: 'A structure must contain an even number of flat pieces touching a upright piece.'
-query: 'generate_valid_structure([even_number_of_interaction(flat, upright, touching, Structure)], Structure)'
-query_n: 'generate_invalid_structure([even_number_of_interaction(flat, upright, touching, Structure)], Structure)'
+rule: 'A structure must contain an odd number of vertical pieces ungrounded.'
+query: 'generate_valid_structure([odd_number_of_interaction(vertical, ungrounded, Structure)], Structure)'
+query_n: 'generate_invalid_structure([odd_number_of_interaction(vertical, ungrounded, Structure)], Structure)'
 rule_index: 0
 output_dir_spec: 'output_spec' # The directory where output images will be stored. It will be created if it does not exist.
 

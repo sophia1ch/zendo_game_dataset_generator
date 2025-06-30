@@ -1,5 +1,15 @@
 {
   "QUANTITY": {
+    "zero": [
+      {
+        "template": "zero {COLOR|SHAPE} pieces",
+        "prolog": ["zero"]
+      },
+      {
+        "template": "zero {COLOR} {SHAPE} pieces",
+        "prolog": ["zero"]
+      }
+    ],
     "at least": [
       {
         "template": "at least {NUMBER} {COLOR|ORIENTATION|SHAPE} pieces{OPERATION}",
@@ -91,6 +101,22 @@
         "template": "either {NUMBER} or {NUMBER} of total pieces",
         "prolog": ["either_or"]
       }
+    ],
+    "pieces of all three": [
+      {
+        "template": "pieces of all three shapes",
+        "prolog": ["all_three_shapes"]
+      },
+      {
+        "template": "pieces of all three colors",
+        "prolog": ["all_three_colors"]
+      }
+    ],
+    "exclucively": [
+      {
+        "template": "exclusively {COLOR|ORIENTATION|SHAPE} pieces",
+        "prolog": ["exclusively"]
+      }
     ]
   },
   "OPERATION": [
@@ -117,6 +143,10 @@
       "prolog": ["grounded"]
     },
     {
+      "template": "ungrounded",
+      "prolog": ["ungrounded"]
+    },
+    {
       "template": "pointing at a {SHAPE|COLOR|ORIENTATION} piece",
       "prolog": ["pointing"]
     },
@@ -127,11 +157,11 @@
   ],
   "ORIENTATION": [
   "vertical",
-  "horizontal",
   "flat",
   "upright",
   "upside_down",
-  "cheesecake"
+  "cheesecake",
+  "doorstop"
 ],
   "COLOR": [
     "blue",
@@ -145,7 +175,7 @@
     },
     {
       "template": "wedge",
-      "orientations": ["vertical", "flat", "upright", "cheesecake", "upside-down", "weird"]
+      "orientations": ["vertical", "doorstop", "upright", "cheesecake", "upside-down", "weird"]
     },
     {
       "template": "block",
