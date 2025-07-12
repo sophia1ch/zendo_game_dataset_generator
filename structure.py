@@ -171,11 +171,13 @@ def touching(object_1: ZendoObject, object_2: ZendoObject, face: str = 'left', m
             offset -= margin
         # Move object_1 to touch object_2
         if ((object_1.pose == 'upside_down' and object_2.pose == 'upright') or (object_2.pose == 'upside_down' and object_1.pose == 'upright')) and object_2.shape == "pyramid" and object_1.shape == "pyramid":
-            offset = offset * 0.51
-        if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'wedge' and object_2.shape == "pyramid") or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'wedge' and object_1.shape == "pyramid"):
-            offset = offset * 0.51
-        if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'pyramid' and object_2.shape == "wedge") or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'pyramid' and object_1.shape == "wedge"):
-            offset = offset * 0.51
+            offset = offset * 0.54
+        if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'wedge' and object_2.shape == "pyramid" and any(abs(object_1.get_rotation_z_degrees() - target) < 20 for target in [90, 270])) or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'wedge' and object_1.shape == "pyramid" and any(abs(object_2.get_rotation_z_degrees() - target) < 20 for target in [90, 270])):
+            offset = offset * 0.54
+        if (object_1.pose == 'upside_down' and object_2.pose == 'upright' and object_1.shape == 'pyramid' and object_2.shape == "wedge"  and any(abs(object_2.get_rotation_z_degrees() - target) < 20 for target in [90, 270])) or (object_2.pose == 'upside_down' and object_1.pose == 'upright' and object_2.shape == 'pyramid' and object_1.shape == "wedge" and any(abs(object_1.get_rotation_z_degrees() - target) < 20 for target in [90, 270])):
+            offset = offset * 0.54
+        if (((object_1.pose == 'upside_down' and object_2.pose == 'upright') or (object_1.pose == 'upright' and object_2.pose == 'upside_down')) and object_1.shape == 'wedge' and object_2.shape == "wedge"  and any(abs(object_2.get_rotation_z_degrees() - target) < 20 for target in [90, 270]) and any(abs(object_1.get_rotation_z_degrees() - target) < 20 for target in [90, 270])):
+            offset = offset * 0.54
         object_1.obj.location[axis_index] += offset
         if offset is None:
            raise ValueError(

@@ -405,7 +405,7 @@ def main(args):
         print(f"Total failed attempts: {failed_attempts}")
         print(f"Total execution iterations: {num_rules}")
     else:
-        print(f"Using existing rules from fixed_zendo_rules.txt")
+        print(f"Using existing rules from rules.txt")
         i = start_rule
         while i <= end_rule:
             print(f"Generating rule {i + 1}/{len(rules)}...")

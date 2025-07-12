@@ -429,6 +429,26 @@ interaction_constraint_check(Structure) :-
         member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure);
         member(item(SourceId, _, _, vertical, _), Structure),
         member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure)))
+    ),
+    no_flat_toucher_has_on_top(Structure).
+
+% Ensure no flat piece touches an upside-down pyramid or wedge and has something on top
+no_flat_toucher_has_on_top(Structure) :-
+    \+ (
+        member(item(FlatId, _, _, flat, _), Structure),
+
+        % Check if flat piece is touching an upside-down piece
+        (
+            member(item(_, _, Shape, upside_down, touching(FlatId)), Structure)
+            ;
+            member(item(_, _, Shape, upside_down, _), Structure),
+            member(item(FlatId, _, _, _, touching(UpsideDownId)), Structure),
+            member(item(UpsideDownId, _, Shape, upside_down, _), Structure)
+        ),
+        (Shape = pyramid; Shape = wedge),
+
+        % And has something on top
+        member(item(_, _, _, _, on_top_of(FlatId)), Structure)
     ).
 
 % Helper functions for checking, if on_top_of creates a loop!

@@ -237,6 +237,15 @@ class ZendoObject:
         self.set_to_ground()
         bpy.context.view_layer.update()
 
+    def get_rotation_z_degrees(self) -> float:
+        """
+        Returns the rotation of the object around the Z-axis in degrees, normalized to [0, 360).
+        Assumes rotation_mode is QUATERNION.
+        """
+        quat = self.obj.rotation_quaternion
+        euler = quat.to_euler('XYZ')
+        return math.degrees(euler.z) % 360
+
     def move(self, vec: Vector):
         """
         Moves the object by the specified offset vector.
@@ -298,6 +307,13 @@ class ZendoObject:
                                        max(v.z for v in world_vertices)))
 
         return min_coords, max_coords
+    
+    def get_front_facing_direction(self) -> Vector:
+        """
+        Returns the direction vector that the object is facing in world space.
+        Assumes +Y is the local 'front' of the model.
+        """
+        return self.obj.matrix_world.to_quaternion() @ Vector((0, 1, 0))  # +Y is front
 
 
 class Pyramid(ZendoObject):

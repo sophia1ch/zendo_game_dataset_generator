@@ -197,6 +197,7 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
             continue
 
         structure = scenes[0]
+        print(f"🔍 Generating scene {i} with structure: {structure}")
         structure_hashable = frozenset(tuple(sorted(str(x) for x in structure)))
         if structure_hashable in seen_structures:
             print(f"🔁 Duplicate structure detected for index {i}, regenerating...")
