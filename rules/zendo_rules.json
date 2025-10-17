@@ -52,6 +52,12 @@
         "prolog": ["more_than"]
       }
     ],
+    "same amount of": [
+      {
+        "template": "same amount of {SHAPE|COLOR|ORIENTATION} pieces and {SHAPE|COLOR|ORIENTATION} pieces",
+        "prolog": ["same_amount"]
+      }
+    ],
     "an odd number of": [
       {
         "template": "an odd number of total pieces",

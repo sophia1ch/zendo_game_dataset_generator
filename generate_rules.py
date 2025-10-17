@@ -30,10 +30,8 @@ def main(args):
     while len(rules) < num_rules:
         # get rule in string form and query, negative query in prolog form
         rule, query, n_query = generate_rule(rules_json_file)
-        if "Error" not in rule and "more vertical than upright" not in rule and "more vertical than upside_down" not in rule \
-            and "more upright than vertical" not in rule and "more upside_down than vertical" not in rule \
-            and "more doorstop than flat" not in rule and "more cheesecake than flat" not in rule \
-            and ("zero" in rule or "exclusively" in rule or "grounded" in rule or "ungrounded" in rule or "of all" in rule):
+        if "Error" not in rule and "more upright than vertical" not in rule and "more upside_down than vertical" not in rule \
+            and "more doorstop than flat" not in rule and "more cheesecake than flat" not in rule:
             rules.append(rule)
             queries.append(query)
             queries_n.append(n_query)

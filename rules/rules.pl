@@ -612,6 +612,13 @@ either_or(N1, N2, Structure) :-
     length(Structure, L),
     (L =:= N1; L =:= N2).
 
+same_amount(A1, A2, Structure) :-
+    count_attribute(A1, Structure, C1),
+    count_attribute(A2, Structure, C2),
+    C1 \= 0,
+    C2 \= 0,
+    C1 =:= C2.
+
 and([]).
 and([C|Cs]) :-
     call(C),

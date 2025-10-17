@@ -228,6 +228,12 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
                     min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
                     world_pos.x, world_pos.y, world_pos.z, x_min, y_min, x_max, y_max
                 ])
+                print("added example: ", [
+                    scene_name, img_path, rule, query, obj.name, obj.grounded,
+                    obj.touching, obj.rays, obj.pointing,
+                    min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
+                    world_pos.x, world_pos.y, world_pos.z, x_min, y_min, x_max, y_max
+                ])
 
             for obj in collection.objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
@@ -269,7 +275,8 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
     gc.collect()
 
     if examples_data:
-        csv_file_path = os.path.join(args.output_dir, f"ground_truth_{start_rule}.csv")
+        print(f"Generated {len(examples_data)} examples for rule {rule_idx}.")
+        csv_file_path = os.path.join(args.output_dir_spec, f"ground_truth.csv")
         with open(csv_file_path, "a", newline="") as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerows(examples_data)

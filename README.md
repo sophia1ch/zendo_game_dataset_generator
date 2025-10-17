@@ -106,6 +106,10 @@ To generate a dataset using the default configuration:
   /home/sophia/blender/4.4/python/bin/python3.11 -m pip install pyswip
   PYTHONPATH=$(pwd) blender --background --python render.py --
 ```
+or to generate rules in parallel call:
+```bash
+  python multi_render.py -- processes 4
+```
 This will:
 - Generate scene structures using Prolog logic (`rules.pl`).
 - Place objects based on constraints in `rules/zendo_rules.json`.
