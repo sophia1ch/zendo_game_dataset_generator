@@ -2,11 +2,15 @@
   "QUANTITY": {
     "zero": [
       {
-        "template": "zero {COLOR|SHAPE} pieces",
+        "template": "zero {COLOR|ORIENTATION|SHAPE} pieces{OPERATION}",
         "prolog": ["zero"]
       },
       {
-        "template": "zero {COLOR} {SHAPE} pieces",
+        "template": "zero {COLOR|ORIENTATION} {SHAPE} pieces{OPERATION}",
+        "prolog": ["zero"]
+      },
+      {
+        "template": "zero {COLOR} {ORIENTATION} pieces{OPERATION}",
         "prolog": ["zero"]
       }
     ],
@@ -16,11 +20,11 @@
         "prolog": ["at_least"]
       },
       {
-        "template": "at least {NUMBER} {COLOR|ORIENTATION} {SHAPE} pieces",
+        "template": "at least {NUMBER} {COLOR|ORIENTATION} {SHAPE} pieces{OPERATION}",
         "prolog": ["at_least"]
       },
       {
-        "template": "at least {NUMBER} {COLOR} {ORIENTATION} pieces",
+        "template": "at least {NUMBER} {COLOR} {ORIENTATION} pieces{OPERATION}",
         "prolog": ["at_least"]
       },
       {
@@ -34,11 +38,11 @@
         "prolog": ["exactly"]
       },
       {
-        "template": "exactly {NUMBER} {COLOR|ORIENTATION} {SHAPE} pieces",
+        "template": "exactly {NUMBER} {COLOR|ORIENTATION} {SHAPE} pieces{OPERATION}",
         "prolog": ["exactly"]
       },
       {
-        "template": "exactly {NUMBER} {COLOR} {ORIENTATION} pieces",
+        "template": "exactly {NUMBER} {COLOR} {ORIENTATION} pieces{OPERATION}",
         "prolog": ["exactly"]
       },
       {
@@ -48,13 +52,13 @@
     ],
     "more pieces than": [
       {
-        "template": "more {SHAPE|COLOR|ORIENTATION} pieces than {SHAPE|COLOR|ORIENTATION} pieces",
+        "template": "more {SHAPE|COLOR|ORIENTATION} pieces than {SHAPE|COLOR|ORIENTATION} pieces{OPERATION}",
         "prolog": ["more_than"]
       }
     ],
     "same amount of": [
       {
-        "template": "same amount of {SHAPE|COLOR|ORIENTATION} pieces and {SHAPE|COLOR|ORIENTATION} pieces",
+        "template": "same amount of {SHAPE|COLOR|ORIENTATION} pieces and {SHAPE|COLOR|ORIENTATION} pieces{OPERATION}",
         "prolog": ["same_amount"]
       }
     ],
@@ -68,11 +72,11 @@
         "prolog": ["odd_number_of"]
       },
       {
-        "template": "an odd number of {COLOR|ORIENTATION} {SHAPE} pieces",
+        "template": "an odd number of {COLOR|ORIENTATION} {SHAPE} pieces{OPERATION}",
         "prolog": ["odd_number_of"]
       },
       {
-        "template": "an odd number of {COLOR} {ORIENTATION} pieces",
+        "template": "an odd number of {COLOR} {ORIENTATION} pieces{OPERATION}",
         "prolog": ["odd_number_of"]
       },
       {
@@ -90,11 +94,11 @@
         "prolog": ["even_number_of"]
       },
       {
-        "template": "an even number of {COLOR|ORIENTATION} {SHAPE} pieces",
+        "template": "an even number of {COLOR|ORIENTATION} {SHAPE} pieces{OPERATION}",
         "prolog": ["even_number_of"]
       },
       {
-        "template": "an even number of {COLOR} {ORIENTATION} pieces",
+        "template": "an even number of {COLOR} {ORIENTATION} pieces{OPERATION}",
         "prolog": ["even_number_of"]
       },
       {
@@ -177,15 +181,15 @@
   "SHAPE": [
     {
       "template": "pyramid",
-      "orientations": ["vertical", "flat", "upright", "upside-down", "weird"]
+      "orientations": ["vertical", "flat", "upright", "upside_down", "weird"]
     },
     {
       "template": "wedge",
-      "orientations": ["vertical", "doorstop", "upright", "cheesecake", "upside-down", "weird"]
+      "orientations": ["vertical", "flat", "doorstop", "upright", "cheesecake", "upside_down", "weird"]
     },
     {
       "template": "block",
-      "orientations": ["vertical", "flat", "upright", "upside-down", "weird"]
+      "orientations": ["vertical", "flat", "upright", "upside_down", "weird"]
     }
   ],
   "NUMBER": [

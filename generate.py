@@ -391,6 +391,10 @@ def generate_structure(args, items: list[str], collection, attempt: int = 1, gro
         debug("Scene is occluded, trying to generate again!")
         integrity = False
 
+    if check_scene_out_of_frame():
+        debug("Scene has a piece outside the camera frame, trying to generate again!")
+        integrity = False
+
     debug(f"Integrity: {integrity}")
 
     if not integrity:
@@ -459,6 +463,45 @@ def check_scene_occlusion(threshold):
         debug(f"Actual threshold {obj.name}: {blocked / total:.2f}")
         if blocked / total >= threshold:
             return True
+    return False
+
+
+def check_scene_out_of_frame(margin=0):
+    """
+    Checks whether any piece falls even partially outside the camera's visible
+    frame, or behind the camera. get_image_bounding_box() clamps out-of-range
+    projected coordinates to the image resolution for the CSV/tensor output,
+    which silently hides this rather than catching it, so it has to be checked
+    separately here, before the scene is accepted, on the true (unclamped)
+    projected vertex positions.
+
+    :param margin: Extra pixels of slack allowed outside the resolution bounds
+        before a piece counts as out of frame.
+    :return: True if any piece is (partially) out of frame or behind the camera.
+    """
+
+    cam = bpy.data.objects["Camera.001"]
+    scene = bpy.context.scene
+    res_x = scene.render.resolution_x
+    res_y = scene.render.resolution_y
+    targets = [
+        o for o in bpy.data.objects
+        if o.type == 'MESH' and any(k in o.name for k in ["Pyramid", "Wedge", "Block"])
+    ]
+
+    for obj in targets:
+        mw = obj.matrix_world
+        for v in obj.data.vertices:
+            world_v = mw @ v.co
+            co_ndc = world_to_camera_view(scene, cam, world_v)
+            if co_ndc.z <= 0:
+                debug(f"{obj.name} is behind the camera!")
+                return True
+            x = co_ndc.x * res_x
+            y = (1.0 - co_ndc.y) * res_y
+            if x < -margin or x > res_x + margin or y < -margin or y > res_y + margin:
+                debug(f"{obj.name} projects outside the visible frame ({x:.1f}, {y:.1f})!")
+                return True
     return False
 
 def compute_3d_bbox_corners(min_bb, max_bb):

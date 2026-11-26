@@ -44,6 +44,60 @@ generate_invalid_structure(Checks, Structure) :-
     interaction_constraint_check(Structure),
     (not(and(Checks)) -> !; fail).
 
+% Generate a structure that disproves Checks1: invalid for Checks1, valid for Checks2
+generate_disproving_structure(Checks1, Checks2, Structure) :-
+    disproving_sizes(Checks1, Checks2, Sizes),
+    member(N, Sizes),
+    between(1, 100, _),
+    generate_items(N, N, Structure),
+    interaction_constraint_check(Structure),
+    \+ and(Checks1),
+    and(Checks2),
+    !.
+
+% Sizes to try when disproving Checks1 while satisfying Checks2. Must be a size
+% that can satisfy Checks2 (hard constraint). Prefer sizes that also fail
+% Checks1s size constraints (primary tier), falling back to other sizes valid
+% for Checks2 where the disproof can come from non-size checks.
+disproving_sizes(Checks1, Checks2, Sizes) :-
+    ( possible_structure_sizes_from_checks(Checks2, S2) -> true ; default_size_range(S2) ),
+    ( invalid_structure_sizes_from_checks(Checks1, Inv1) -> true ; default_size_range(Inv1) ),
+    findall(N, (member(N, Inv1), member(N, S2)), Primary),
+    findall(N, (member(N, S2), \+ member(N, Primary)), Secondary),
+    random_permutation(Primary, PShuf),
+    random_permutation(Secondary, SShuf),
+    append(PShuf, SShuf, Sizes).
+
+% Generate a structure that discriminates two rule sets (XOR: satisfies exactly one)
+generate_discriminating_structure(Checks1, Checks2, Structure) :-
+    discriminating_sizes(Checks1, Checks2, Sizes),
+    random_permutation(Sizes, Shuffled),
+    member(N, Shuffled),
+    between(1, 100, _),
+    generate_items(N, N, Structure),
+    interaction_constraint_check(Structure),
+    (
+        (and(Checks1), \+ and(Checks2))
+    ;
+        (\+ and(Checks1), and(Checks2))
+    ),
+    !.
+
+% Sizes that could possibly discriminate Checks1 from Checks2: sizes valid for
+% exactly one of the two check sets. Falls back to the default range if both
+% check sets place no size constraint (then any size might discriminate).
+discriminating_sizes(Checks1, Checks2, Sizes) :-
+    ( possible_structure_sizes_from_checks(Checks1, S1) -> true ; default_size_range(S1) ),
+    ( possible_structure_sizes_from_checks(Checks2, S2) -> true ; default_size_range(S2) ),
+    findall(N, (member(N, S1), \+ member(N, S2)), Only1),
+    findall(N, (member(N, S2), \+ member(N, S1)), Only2),
+    append(Only1, Only2, Combined),
+    % Combined is empty only when S1 and S2 contain the same sizes; in that
+    % case structures can still differ on non-size constraints, so try those
+    % shared sizes (which equals the default range when neither check
+    % constrains size).
+    ( Combined \= [] -> Sizes = Combined ; Sizes = S1 ).
+
 % Define preferred size range if not specified by rules
 default_size_range([7, 6, 5, 4, 3, 2, 1]).
 
@@ -61,6 +115,11 @@ contains_explicitly_allows_1_in_either_or(Checks) :-
 
 possible_structure_sizes_from_checks(Checks, ValidSizes) :-
     default_size_range(DefaultSizes),
+
+    % 0. Exact length_ constraint overrides everything
+    ( member(length_(FixedN, _), Checks) ->
+        ValidSizes = [FixedN], !
+    ; true ),
 
     % 1. Check for either_or constraints
     ( member(either_or(A, B, _), Checks) ->
@@ -80,6 +139,8 @@ possible_structure_sizes_from_checks(Checks, ValidSizes) :-
         (
             C = exactly(_, N, _)
         ;   C = exactly(_, _, N, _)
+        ;   C = at_least(_, N, _)
+        ;   C = at_least(_, _, N, _)
         ;   C = at_least_interaction(_, _, _, N, _)
         )
     ), Ns),
@@ -96,25 +157,30 @@ determine_invalid_structure_size(Checks, N) :-
 invalid_structure_sizes_from_checks(Checks, Sizes) :-
     default_size_range(DefaultSizes),
 
-    % Step 1: Exclude sizes listed in either_or
-    ( member(either_or(A, B, _), Checks) ->
-        exclude(eq(A), DefaultSizes, T1),
-        exclude(eq(B), T1, Sizes1)
+    % Step 1: Exclude the fixed size from length_ constraint (invalid = wrong count)
+    ( member(length_(FixedN, _), Checks) ->
+        exclude(eq(FixedN), DefaultSizes, Sizes1)
     ; Sizes1 = DefaultSizes ),
 
-    % Step 2: Apply opposite of odd/even
-    ( member(odd_number_of(_), Checks) ->
-        include(even, Sizes1, Sizes2)
-    ; member(even_number_of(_), Checks) ->
-        include(odd, Sizes1, Sizes2)
+    % Step 2: Exclude sizes listed in either_or
+    ( member(either_or(EitherN, OrN, _), Checks) ->
+        exclude(eq(EitherN), Sizes1, T2),
+        exclude(eq(OrN), T2, Sizes2)
     ; Sizes2 = Sizes1 ),
 
-    % Step 3: Filter out any structure sizes that exactly match attribute-based counts
+    % Step 3: Apply opposite of odd/even
+    ( member(odd_number_of(_), Checks) ->
+        include(even, Sizes2, Sizes3)
+    ; member(even_number_of(_), Checks) ->
+        include(odd, Sizes2, Sizes3)
+    ; Sizes3 = Sizes2 ),
+
+    % Step 4: Filter out any structure sizes that exactly match attribute-based counts
     findall(N, (
         member(C, Checks),
         (C = exactly(_, N, _); C = exactly(_, _, N, _))
     ), ExactNs),
-    exclude_list(Sizes2, ExactNs, Sizes),
+    exclude_list(Sizes3, ExactNs, Sizes),
 
     Sizes \= [], !.  % Fail safely if nothing matches
 
@@ -173,7 +239,15 @@ assign_random_id(inside(_), MaxId, Id, inside(T)) :-
     T \= Id.
 
 item_has_attribute(Attr, item(_,C,S,O,I)) :-
-    (
+    % once/1: Attr="flat" matches both the "horizontal group" disjunct and the
+    % "direct orientation match" disjunct when O is literally flat, so without
+    % once/1 this predicate has 2 solutions for that case instead of 1. Callers
+    % that collect results via unguarded findall (has_interaction_attribute/4,5,
+    % feeding at_least_interaction/exactly_interaction) would then double-count
+    % such items. once/1 is safe here since every caller uses this as a boolean
+    % check (findall/include/forall) with Attr and Item already bound, never to
+    % backtrack into a second distinct proof.
+    once((
         Attr = C
     ;
         Attr = S
@@ -187,10 +261,32 @@ item_has_attribute(Attr, item(_,C,S,O,I)) :-
         % Direct match of orientation
         Attr = O
     ;
+        % Grounded / ungrounded: grounded means resting on the table
+        % (any interaction except on_top_of); ungrounded means stacked
+        % on top of another piece. Matches the semantics already used
+        % by count_interaction_matching_items/4. Without these two
+        % clauses, "ungrounded" never matched any item (count_attribute
+        % always returned 0), and "grounded" only matched an item whose
+        % interaction was literally the bare atom `grounded`, missing
+        % items that are grounded but also touching/pointing -- making
+        % predicates like more_than/zero/at_least/exactly built on these
+        % two attributes either silently wrong or, for the impossible
+        % always C=0 case, unsatisfiable Prologs generator would
+        % spin forever looking for a structure that could never exist.
+        Attr = grounded,
+        nonvar(I),
+        functor(I, F, _),
+        F \= on_top_of
+    ;
+        Attr = ungrounded,
+        nonvar(I),
+        functor(I, F, _),
+        F == on_top_of
+    ;
         % Interaction check
         nonvar(I),
         I =.. [Attr | _]
-    ).
+    )).
 
 item_has_two_attributes(A1, A2, Item) :-
     A2 \= grounded,
@@ -275,7 +371,7 @@ has_interaction_attribute(QAttr, ungrounded, Structure, item(_,C,S,O,on_top_of(_
 has_interaction_attribute(QAttr, IAttr, InteractionName, Structure, item(_,C,S,O,I)) :-
     item_has_attribute(QAttr, item(_,C,S,O,I)),
     decode_interaction(I, InteractionName, Target),
-    Target \= none, % Not really needed, because if grounded, we don`t use this case
+    Target \= none, % Not really needed, because if grounded, we dont use this case
     member(item(Target,TC,TS,TO,TI), Structure),
     item_has_attribute(IAttr, item(Target,TC,TS,TO,TI)).
 
@@ -416,19 +512,20 @@ interaction_constraint_check(Structure) :-
         member(item(TargetId,_,_,_,pointing(_)), Structure))
     ),
     %% Pointing %%
-    % All pointing items are grounded! Loops allowed
-    % Flat and cheesecake items can point only to grounded items
-    % Upright and vertical items can only point to items with on_top_of(SourceId)
+    % Only flat, cheesecake, and doorstop items can point (all grounded horizontally)
+    % Upright and upside_down items cannot point at all
     forall(
         member(item(SourceId, _, _, _, pointing(TargetId)), Structure),
-        ((member(item(SourceId, _, _, flat, _), Structure),
-        member(item(TargetId, _, _, _, grounded), Structure);
-        member(item(SourceId, _, _, cheesecake, _), Structure),
-        member(item(TargetId, _, _, _, grounded), Structure));
-        (member(item(SourceId, _, _, upright, _), Structure),
-        member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure);
-        member(item(SourceId, _, _, vertical, _), Structure),
-        member(item(TargetId, _, _, _, on_top_of(SourceId)), Structure)))
+        (
+            (member(item(SourceId, _, _, flat, _), Structure),
+             member(item(TargetId, _, _, _, grounded), Structure))
+        ;
+            (member(item(SourceId, _, _, cheesecake, _), Structure),
+             member(item(TargetId, _, _, _, grounded), Structure))
+        ;
+            (member(item(SourceId, _, _, doorstop, _), Structure),
+             member(item(TargetId, _, _, _, grounded), Structure))
+        )
     ),
     no_flat_toucher_has_on_top(Structure).
 
@@ -455,7 +552,7 @@ no_flat_toucher_has_on_top(Structure) :-
 has_loop(StartId, Structure) :-
     has_loop_helper(StartId, StartId, Structure, []).
 
-% If the current ID has already been visited, there`s a loop
+% If the current ID has already been visited, theres a loop
 has_loop_helper(_, CurrentId, _, Visited) :-
     member(CurrentId, Visited),
     !.
@@ -508,6 +605,16 @@ at_least_interaction(QAttr, InteractionName, N, Structure) :-
         Filtered),
     length(Filtered, Count),
     Count >= N.
+
+all(Attr, Structure) :-
+    count_attribute(Attr, Structure, C),
+    length(Structure, L),
+    C =:= L.
+
+all(A1, A2, Structure) :-
+    count_multiple_attributes(A1, A2, Structure, C),
+    length(Structure, L),
+    C =:= L.
 
 exactly(Attr, N, Structure) :-
     count_attribute(Attr, Structure, C),
@@ -612,6 +719,10 @@ either_or(N1, N2, Structure) :-
     length(Structure, L),
     (L =:= N1; L =:= N2).
 
+length_(N1, Structure) :-
+    length(Structure, L),
+    (L =:= N1).
+
 same_amount(A1, A2, Structure) :-
     count_attribute(A1, Structure, C1),
     count_attribute(A2, Structure, C2),
@@ -620,6 +731,7 @@ same_amount(A1, A2, Structure) :-
     C1 =:= C2.
 
 and([]).
+and([length(_)|Cs]) :- !, and(Cs).  % length(N) is a size constraint, not a callable check
 and([C|Cs]) :-
     call(C),
     and(Cs).

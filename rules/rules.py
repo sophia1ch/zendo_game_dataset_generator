@@ -1,5 +1,6 @@
-import sys, os, random, json, re
+import sys, os, random, json, re, subprocess
 from dataclasses import dataclass, field
+from typing import Callable
 from pyswip import Prolog
 from utils import debug
 from hashlib import sha256
@@ -67,6 +68,10 @@ class TemplateGenerator:
     used_templates: dict[str, list[PlaceholderTemplate]]
     two_random_steps: bool = False
     print_tree: bool = False
+    # NOTE(claude): Optional override for picking among COLOR/SHAPE/ORIENTATION candidates
+    # (e.g. a global-usage-weighted picker for curriculum generation). Left as None, behavior
+    # is unchanged (uniform random.choice), so this is opt-in and doesn't affect existing callers.
+    attribute_pick_fn: Callable[[list["PlaceholderTemplate"]], "PlaceholderTemplate"] | None = None
 
 
 # MARK: Exceptions
@@ -312,7 +317,8 @@ def template_from_text(rules: Rules, text: str, placeholders_naked: bool = True)
 def random_placeholder_template(rules: Rules, placeholder_id: str, two_steps: bool = False,
                                 used_templates: dict[str, list[PlaceholderTemplate]] | None = None,
                                 allowed_orientations: list[PlaceholderTemplate] | None = None,
-                                no_interaction_when_operator_used: bool = True) -> PlaceholderTemplate:
+                                no_interaction_when_operator_used: bool = True,
+                                attribute_pick_fn: Callable[[list[PlaceholderTemplate]], PlaceholderTemplate] | None = None) -> PlaceholderTemplate:
     """
     Randomly selects a placeholder template from the rules based on the given placeholder_id.
     Ensures that previously used templates (if provided) are not reused.
@@ -324,6 +330,8 @@ def random_placeholder_template(rules: Rules, placeholder_id: str, two_steps: bo
     :param used_templates: A dictionary tracking already used templates to avoid repetition.
     :param allowed_orientations: A list of specific orientation templates to be considered, if applicable.
     :param no_interaction_when_operator_used: If True, avoids interaction templates if an operator was used previously.
+    :param attribute_pick_fn: If given and placeholder_id is COLOR/SHAPE/ORIENTATION, used instead of a
+        uniform random.choice to pick among the remaining candidates (e.g. a global-usage-weighted picker).
     :return: A randomly chosen PlaceholderTemplate object.
     :raises Exception: If no valid templates are available.
     """
@@ -378,7 +386,10 @@ def random_placeholder_template(rules: Rules, placeholder_id: str, two_steps: bo
                                                "INTERACTION" not in template.placeholders]
         if len(remaining_placeholder_templates) == 0:
             raise Exception(f"Every template of placeholder '{placeholder_id}' was already used.")
-        picked_template = random.choice(remaining_placeholder_templates)
+        if attribute_pick_fn is not None and placeholder_id in ("COLOR", "SHAPE", "ORIENTATION"):
+            picked_template = attribute_pick_fn(remaining_placeholder_templates)
+        else:
+            picked_template = random.choice(remaining_placeholder_templates)
 
     if placeholder_id not in used_templates:
         used_templates[placeholder_id] = []
@@ -406,7 +417,8 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
         if token.is_placeholder and token.string == "SHAPE":
             try:
                 shape_replacement = random_placeholder_template(generator.rules, token.string,
-                                                                generator.two_random_steps, generator.used_templates)
+                                                                generator.two_random_steps, generator.used_templates,
+                                                                attribute_pick_fn=generator.attribute_pick_fn)
             except Exception as e:
                 shape_replacement = f"[Error: {str(e)}]"
             shape_replacements.append(shape_replacement)
@@ -458,13 +470,22 @@ def template_to_string_random_recursive(generator: TemplateGenerator, template: 
                 next_shape_index += 1
             else:
                 allowed_orientations = None
-                if i + 1 < len(template.tokens):
-                    next_token = template.tokens[i + 1]
+                # NOTE(kilian): Skip over purely whitespace literal tokens (e.g. the space in
+                # "{ORIENTATION} {SHAPE}") so an ORIENTATION directly describing the following
+                # SHAPE is still recognized as adjacent to it, restricting to orientations that
+                # shape can physically have (e.g. never "cheesecake block" or "flat wedge").
+                next_index = i + 1
+                while next_index < len(template.tokens) and not template.tokens[next_index].is_placeholder \
+                        and template.tokens[next_index].string.strip() == "":
+                    next_index += 1
+                if next_index < len(template.tokens):
+                    next_token = template.tokens[next_index]
                     if next_token.is_placeholder and next_token.string == "SHAPE":
                         allowed_orientations = compute_allowed_orientations(next_shape_index)
                 try:
                     replacement = random_placeholder_template(generator.rules, token.string, generator.two_random_steps,
-                                                              generator.used_templates, allowed_orientations)
+                                                              generator.used_templates, allowed_orientations,
+                                                              attribute_pick_fn=generator.attribute_pick_fn)
                     generator.depth += 1
                     replacement = template_to_string_random_recursive(generator, replacement)
                     generator.depth -= 1
@@ -698,6 +719,535 @@ def rule_text_to_prolog(rules: Rules, rule: str, starting_template: PlaceholderT
     if debug_print_nodes:
         print_rule_nodes(root)
     return rule_to_prolog(root)
+
+
+# MARK: Validation
+
+def call_prolog_subprocess(n, query, prolog_file, timeout=6):
+    """
+    Runs generate_prolog_structure for a single query in an isolated subprocess with a hard
+    timeout. Some generated rules are logically impossible (e.g. comparing an attribute count
+    against a strict superset of itself, such as "more upright pieces than vertical pieces",
+    or "and"-ing together two attribute checks that contradict each other). Their Prolog query
+    would otherwise search forever, since the underlying "repeat" loop never gives up on its
+    own. The timeout turns that infinite loop into a clean "not realizable" result instead of
+    a hang, mirroring the same guard already used when rendering scenes (see render.py).
+
+    :param n: Number of structures to request.
+    :param query: The Prolog query string to run (as produced by rule_to_prolog).
+    :param prolog_file: Path to the Prolog rules file to consult.
+    :param timeout: Maximum number of seconds to allow the subprocess to run.
+    :return: A list of generated structures, or None if the query timed out or failed.
+    """
+
+    script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                               "call_generate_prolog.py")
+    try:
+        result = subprocess.check_output(
+            [sys.executable, script_path, str(n), query, prolog_file],
+            timeout=timeout, stderr=subprocess.DEVNULL)
+        return json.loads(result)
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, json.JSONDecodeError):
+        return None
+
+
+def is_rule_realizable(query, n_query, prolog_file='rules/rules.pl', timeout=6):
+    """
+    Empirically verifies that a generated rule is actually realizable: at least one structure
+    that fulfills it (valid) and one that violates it (invalid) must exist. This catches rules
+    that read fine as text but are logically impossible, such as comparing an attribute to a
+    group that always contains it (e.g. "more upright pieces than vertical pieces" can never be
+    true, since every upright piece already counts as vertical) or combining two attribute
+    counts via "and"/"or" in a way that contradicts itself (e.g. "exactly 2 vertical pieces and
+    exactly 3 upright pieces").
+
+    :param query: Prolog query string generating a structure that fulfills the rule.
+    :param n_query: Prolog query string generating a structure that violates the rule.
+    :param prolog_file: Path to the Prolog rules file to consult.
+    :param timeout: Maximum number of seconds to allow each check to run.
+    :return: True if both a valid and an invalid structure could be generated, False otherwise.
+    """
+
+    if not call_prolog_subprocess(1, query, prolog_file, timeout=timeout):
+        return False
+    if not call_prolog_subprocess(1, n_query, prolog_file, timeout=timeout):
+        return False
+    return True
+
+
+def generate_valid_rule(rules_json_file='rules/zendo_rules.json', prolog_file='rules/rules.pl',
+                        max_attempts=30, timeout=6):
+    """
+    Generates a random rule and, if it turns out to be unrealizable, keeps drawing a fresh
+    random rule (up to max_attempts times) instead of returning something that could never be
+    satisfied by any structure. This is what lets a caller ask for N rules and actually get N
+    usable rules back, rather than needing to discard a fraction of them afterwards.
+
+    :param rules_json_file: The path to the JSON file containing placeholder rules.
+    :param prolog_file: Path to the Prolog rules file used to check realizability.
+    :param max_attempts: Maximum number of candidate rules to try before giving up.
+    :param timeout: Maximum number of seconds to allow each realizability check to run.
+    :return: A tuple (rule, query, n_query, attempts_used), or None if no realizable rule was
+             found within max_attempts.
+    """
+
+    for attempt in range(1, max_attempts + 1):
+        rule, query, n_query = generate_rule(rules_json_file)
+        if "Error" in rule:
+            continue
+        if is_rule_realizable(query, n_query, prolog_file, timeout=timeout):
+            return rule, query, n_query, attempt
+    return None
+
+
+# MARK: Curriculum generation
+#
+# Generates a fixed, structured set of rules rather than a purely random sample: a set
+# number of single-predicate instances per predicate identity, plus a set of two-predicate
+# "and"/"or" combinations covering every predicate identity exactly once.
+
+_QUANTITY_ATTR_PLACEHOLDERS = {"COLOR", "ORIENTATION", "SHAPE"}
+
+_RULE_PREFIX = "A structure must contain "
+_RULE_SUFFIX = "."
+
+# cheesecake/doorstop are only achievable by wedges (blocks/pyramids can't have those
+# orientations), so weighting them the same as the other orientations would silently force
+# wedges to be picked disproportionately often just to satisfy those draws.
+DISCOUNTED_ATTRIBUTE_VALUES = {"cheesecake", "doorstop"}
+DISCOUNTED_ATTRIBUTE_WEIGHT = 0.5
+
+
+def make_balanced_attribute_picker(usage_counts: dict[str, int] | None = None):
+    """
+    Builds a weighted-pick function for COLOR/SHAPE/ORIENTATION candidates that favors
+    whichever attribute value has been used least so far, so the aggregate distribution
+    across a whole generation run stays roughly even. cheesecake/doorstop are discounted
+    relative to the other orientations (see DISCOUNTED_ATTRIBUTE_WEIGHT) so satisfying them
+    doesn't force wedges to be over-represented.
+
+    :param usage_counts: An optional starting counts dict (attribute value text -> count),
+        e.g. pre-seeded from already-hardcoded rules so the picker accounts for them from the
+        start. Mutated in place as picks are made; pass the same dict to share balancing state
+        across multiple generation calls.
+    :return: A function (candidates: list[PlaceholderTemplate]) -> PlaceholderTemplate that
+        also records the pick into usage_counts.
+    """
+
+    counts = usage_counts if usage_counts is not None else {}
+
+    def weight_of(template: PlaceholderTemplate) -> float:
+        value = template.template
+        base = DISCOUNTED_ATTRIBUTE_WEIGHT if value in DISCOUNTED_ATTRIBUTE_VALUES else 1.0
+        return base / (counts.get(value, 0) + 1)
+
+    def pick(candidates: list[PlaceholderTemplate]) -> PlaceholderTemplate:
+        weights = [weight_of(t) for t in candidates]
+        chosen = random.choices(candidates, weights=weights, k=1)[0]
+        counts[chosen.template] = counts.get(chosen.template, 0) + 1
+        return chosen
+
+    return pick
+_VALID_QUERY_PREFIX = "generate_valid_structure(["
+_VALID_QUERY_SUFFIX = "], Structure)"
+
+
+def classify_quantity_template(template: PlaceholderTemplate) -> str:
+    """
+    Classifies a concrete QUANTITY template into one of the 22 canonical predicate identities
+    (AT_LEAST_1, EXACTLY_2, MORE_THAN, EITHER_OR, ...) based on its prolog function name and
+    which placeholders it contains (attribute count, presence of INTERACTION).
+
+    :param template: A concrete PlaceholderTemplate from the QUANTITY placeholder's template pool.
+    :return: The canonical predicate identity string.
+    :raises Exception: If the template doesn't match any known predicate identity.
+    """
+
+    fn = template.prolog[0] if template.prolog else None
+    attr_count = len(_QUANTITY_ATTR_PLACEHOLDERS & template.placeholders)
+    has_interaction = "INTERACTION" in template.placeholders
+
+    if fn == "zero":
+        return "ZERO_1" if attr_count == 1 else "ZERO_2"
+    if fn == "at_least":
+        return "AT_LEAST_1" if attr_count == 1 else "AT_LEAST_2"
+    if fn == "exactly":
+        return "EXACTLY_1" if attr_count == 1 else "EXACTLY_2"
+    if fn == "at_least_interaction":
+        return "AT_LEAST_INTERACTION"
+    if fn == "exactly_interaction":
+        return "EXACTLY_INTERACTION"
+    if fn == "more_than":
+        return "MORE_THAN"
+    if fn == "same_amount":
+        return "SAME_AMOUNT"
+    if fn == "odd_number_of":
+        if has_interaction:
+            return "ODD_INTERACTION"
+        return "ODD" if attr_count == 0 else ("ODD_1" if attr_count == 1 else "ODD_2")
+    if fn == "even_number_of":
+        if has_interaction:
+            return "EVEN_INTERACTION"
+        return "EVEN" if attr_count == 0 else ("EVEN_1" if attr_count == 1 else "EVEN_2")
+    if fn == "odd_number_of_interaction":
+        return "ODD_INTERACTION"
+    if fn == "even_number_of_interaction":
+        return "EVEN_INTERACTION"
+    if fn == "either_or":
+        return "EITHER_OR"
+    if fn == "all_three_shapes":
+        return "ALL_THREE_SHAPES"
+    if fn == "all_three_colors":
+        return "ALL_THREE_COLORS"
+    if fn == "exclusively":
+        return "EXCLUSIVELY"
+    raise Exception(
+        f"Unrecognized QUANTITY template for curriculum classification: '{template.template}' (prolog={template.prolog}).")
+
+
+def build_predicate_template_index(rules: Rules) -> dict[str, list[PlaceholderTemplate]]:
+    """
+    Groups all concrete QUANTITY templates by their canonical predicate identity.
+
+    :param rules: A Rules object containing placeholder definitions.
+    :return: A dict mapping each predicate identity to its concrete templates.
+    """
+
+    index: dict[str, list[PlaceholderTemplate]] = {}
+    for template in rules.placeholders["QUANTITY"].all_templates:
+        predicate = classify_quantity_template(template)
+        index.setdefault(predicate, []).append(template)
+    return index
+
+
+def generate_predicate_instance(rules: Rules, predicate_templates: list[PlaceholderTemplate],
+                                starting_template: PlaceholderTemplate, prolog_file: str,
+                                max_attempts: int = 40, timeout: int = 6,
+                                attribute_pick_fn: Callable[[list[PlaceholderTemplate]], PlaceholderTemplate] | None = None):
+    """
+    Generates one realizable, single-clause (no "and"/"or") rule instance drawn from a
+    predicate's concrete templates.
+
+    :param rules: A Rules object containing placeholder definitions.
+    :param predicate_templates: The concrete templates belonging to one predicate identity.
+    :param starting_template: The "A structure must contain QUANTITY." starting template,
+        used to re-parse generated text back into a RuleNode tree.
+    :param prolog_file: Path to the Prolog rules file used to check realizability.
+    :param max_attempts: Maximum number of draws to try before giving up.
+    :param timeout: Maximum number of seconds to allow each realizability check to run.
+    :param attribute_pick_fn: Optional weighted picker for COLOR/SHAPE/ORIENTATION values
+        (see make_balanced_attribute_picker), used to keep the aggregate attribute
+        distribution balanced across a whole curriculum generation run.
+    :return: A tuple (rule_text, query, n_query, inner_check), or None if no realizable
+        single-clause instance was found within max_attempts.
+    """
+
+    for _ in range(max_attempts):
+        chosen = random.choice(predicate_templates)
+        generator = TemplateGenerator(rules, depth=0, used_templates={}, two_random_steps=False, print_tree=False,
+                                      attribute_pick_fn=attribute_pick_fn)
+        phrase = template_to_string_random_recursive(generator, chosen)
+        if "Error" in phrase:
+            continue
+        rule_text = f"{_RULE_PREFIX}{phrase}{_RULE_SUFFIX}"
+        root = parse_rule_text(rules, rule_text, starting_template)
+        if root is None:
+            continue
+        query, n_query = rule_to_prolog(root)
+        if "and([" in query or "or([" in query:
+            continue  # NOTE(claude): OPERATION rolled a combinator, redraw for a clean single-clause instance
+        if not is_rule_realizable(query, n_query, prolog_file, timeout=timeout):
+            continue
+        inner_check = query[len(_VALID_QUERY_PREFIX):-len(_VALID_QUERY_SUFFIX)]
+        return rule_text, query, n_query, inner_check
+    return None
+
+
+def generate_predicate_instances(rules: Rules, predicate_templates: list[PlaceholderTemplate],
+                                 starting_template: PlaceholderTemplate, prolog_file: str,
+                                 count: int = 4, max_attempts: int = 80, timeout: int = 6,
+                                 max_duplicate_streak: int = 15,
+                                 attribute_pick_fn: Callable[[list[PlaceholderTemplate]], PlaceholderTemplate] | None = None,
+                                 already_used_queries: set[str] | None = None):
+    """
+    Generates up to `count` realizable single-clause instances of a predicate, preferring
+    textually distinct ones. Some predicates (e.g. "an odd number of total pieces",
+    "pieces of all three shapes") have only one possible phrasing at all, so after
+    max_duplicate_streak consecutive duplicate draws this falls back to accepting repeats
+    rather than looping forever trying to find variety that doesn't exist.
+
+    :param rules: A Rules object containing placeholder definitions.
+    :param predicate_templates: The concrete templates belonging to one predicate identity.
+    :param starting_template: The "A structure must contain QUANTITY." starting template.
+    :param prolog_file: Path to the Prolog rules file used to check realizability.
+    :param count: How many instances to collect.
+    :param max_attempts: Maximum number of draws to try before giving up.
+    :param timeout: Maximum number of seconds to allow each realizability check to run.
+    :param max_duplicate_streak: Consecutive duplicate draws to tolerate before allowing repeats.
+    :param attribute_pick_fn: Optional weighted picker for COLOR/SHAPE/ORIENTATION values
+        (see make_balanced_attribute_picker).
+    :param already_used_queries: Queries already used elsewhere (e.g. a hardcoded seed for this
+        same predicate) that should count as "already seen" so freshly generated instances
+        don't accidentally repeat them.
+    :return: A list of up to `count` (rule_text, query, n_query) tuples.
+    """
+
+    instances = []
+    seen_queries = set(already_used_queries) if already_used_queries else set()
+    duplicate_streak = 0
+    attempts = 0
+    while len(instances) < count and attempts < max_attempts:
+        attempts += 1
+        result = generate_predicate_instance(rules, predicate_templates, starting_template, prolog_file,
+                                             max_attempts=1, timeout=timeout, attribute_pick_fn=attribute_pick_fn)
+        if result is None:
+            continue
+        rule_text, query, n_query, _ = result
+        if query in seen_queries:
+            duplicate_streak += 1
+            if duplicate_streak < max_duplicate_streak:
+                continue
+        else:
+            duplicate_streak = 0
+        seen_queries.add(query)
+        instances.append((rule_text, query, n_query))
+    return instances
+
+
+def generate_paired_instance(rules: Rules, predicate_templates_a: list[PlaceholderTemplate],
+                             predicate_templates_b: list[PlaceholderTemplate], combiner: str,
+                             starting_template: PlaceholderTemplate, prolog_file: str,
+                             max_attempts: int = 60, timeout: int = 6,
+                             attribute_pick_fn: Callable[[list[PlaceholderTemplate]], PlaceholderTemplate] | None = None):
+    """
+    Generates one realizable compound rule combining one instance from each of two predicates
+    via "and" or "or". Individually-realizable instances can still be jointly unsatisfiable
+    (e.g. two "exactly" checks that contradict each other), so the combined rule is
+    re-verified as a whole and both sides are redrawn together on failure.
+
+    :param rules: A Rules object containing placeholder definitions.
+    :param predicate_templates_a: Concrete templates for the first predicate.
+    :param predicate_templates_b: Concrete templates for the second predicate.
+    :param combiner: Either "and" or "or".
+    :param starting_template: The "A structure must contain QUANTITY." starting template.
+    :param prolog_file: Path to the Prolog rules file used to check realizability.
+    :param max_attempts: Maximum number of (redraw both sides) attempts before giving up.
+    :param timeout: Maximum number of seconds to allow each realizability check to run.
+    :param attribute_pick_fn: Optional weighted picker for COLOR/SHAPE/ORIENTATION values
+        (see make_balanced_attribute_picker).
+    :return: A tuple (rule_text, query, n_query), or None if no realizable combination was
+        found within max_attempts.
+    """
+
+    already_failed = set()
+    for _ in range(max_attempts):
+        inst_a = generate_predicate_instance(rules, predicate_templates_a, starting_template, prolog_file,
+                                            max_attempts=5, timeout=timeout, attribute_pick_fn=attribute_pick_fn)
+        inst_b = generate_predicate_instance(rules, predicate_templates_b, starting_template, prolog_file,
+                                            max_attempts=5, timeout=timeout, attribute_pick_fn=attribute_pick_fn)
+        if inst_a is None or inst_b is None:
+            continue
+        rule_text_a, _, _, inner_a = inst_a
+        rule_text_b, _, _, inner_b = inst_b
+        phrase_a = rule_text_a[len(_RULE_PREFIX):-len(_RULE_SUFFIX)]
+        phrase_b = rule_text_b[len(_RULE_PREFIX):-len(_RULE_SUFFIX)]
+        rule_text = f"{_RULE_PREFIX}{phrase_a} {combiner} {phrase_b}{_RULE_SUFFIX}"
+        combined_inner = f"{combiner}([{inner_a}, {inner_b}])"
+        if combined_inner in already_failed:
+            # NOTE(claude): This exact combination already failed once. If either side has no
+            # attribute placeholders to vary (e.g. "an even number of total pieces" combined
+            # with "an odd number of total pieces" - a mathematical contradiction, always
+            # unsatisfiable), every future draw will keep landing on the identical combination
+            # and time out identically. Retrying up to max_attempts times would just burn a
+            # full timeout on the same guaranteed failure over and over, so stop here instead.
+            break
+        query = f"generate_valid_structure([{combined_inner}], Structure)"
+        n_query = f"generate_invalid_structure([{combined_inner}], Structure)"
+        if is_rule_realizable(query, n_query, prolog_file, timeout=timeout):
+            return rule_text, query, n_query
+        already_failed.add(combined_inner)
+    return None
+
+
+# Pre-existing rules pulled from zendo-model/data/combined_dataset_short.pkl (a sibling
+# project's dataset), hardcoded here so this repo doesn't need a runtime dependency on that
+# project or its pickle format. Each pickle entry's first element is the bare Prolog "Checks"
+# expression (e.g. "at_least(blue, 3, Structure)"); the English rule text isn't stored there,
+# so it's been composed here to match this repo's exact phrasing conventions. `attrs` records
+# which COLOR/SHAPE/ORIENTATION values each rule consumes, so the balanced attribute picker
+# (see make_balanced_attribute_picker) can be pre-seeded to account for them from the start.
+#
+# 20 of the 22 pickle rules are single-predicate and map 1:1 onto a predicate identity each
+# (all but ZERO_2 and EXACTLY_INTERACTION, which have no pre-existing seed). The remaining 2
+# are already "and"/"or" compounds; both happen to reuse AT_LEAST_1 (once each), so folding
+# them in as 2 of the 11 pairs means AT_LEAST_1 ends up used twice in the paired section and
+# exactly one of the other 21 predicates ends up with zero appearances there instead of one -
+# an unavoidable consequence of the source data, not a bug.
+HARDCODED_SINGLE_SEEDS: dict[str, tuple[str, str, list[str]]] = {
+    "AT_LEAST_1": ("A structure must contain at least 3 blue pieces.",
+                   "at_least(blue, 3, Structure)", ["blue"]),
+    "EVEN_INTERACTION": ("A structure must contain an even number of red pieces pointing at a flat piece.",
+                        "even_number_of_interaction(red, flat, pointing, Structure)", ["red", "flat"]),
+    "MORE_THAN": ("A structure must contain more wedge pieces than cheesecake pieces.",
+                 "more_than(wedge, cheesecake, Structure)", ["wedge", "cheesecake"]),
+    "AT_LEAST_INTERACTION": ("A structure must contain at least 1 yellow pieces on top of another cheesecake piece.",
+                            "at_least_interaction(yellow, cheesecake, on_top_of, 1, Structure)", ["yellow", "cheesecake"]),
+    "EXACTLY_2": ("A structure must contain exactly 1 yellow flat pieces.",
+                 "exactly(yellow, flat, 1, Structure)", ["yellow", "flat"]),
+    "EVEN_1": ("A structure must contain an even number of block pieces.",
+              "even_number_of(block, Structure)", ["block"]),
+    "ODD_2": ("A structure must contain an odd number of flat wedge pieces.",
+             "odd_number_of(flat, wedge, Structure)", ["flat", "wedge"]),
+    "EITHER_OR": ("A structure must contain either 2 or 1 of total pieces.",
+                 "either_or(2, 1, Structure)", []),
+    "ODD_INTERACTION": ("A structure must contain an odd number of yellow pieces touching a wedge piece.",
+                       "odd_number_of_interaction(yellow, wedge, touching, Structure)", ["yellow", "wedge"]),
+    "EVEN_2": ("A structure must contain an even number of blue upright pieces.",
+              "even_number_of(blue, upright, Structure)", ["blue", "upright"]),
+    "AT_LEAST_2": ("A structure must contain at least 3 yellow block pieces.",
+                  "at_least(yellow, block, 3, Structure)", ["yellow", "block"]),
+    "EXACTLY_1": ("A structure must contain exactly 3 flat pieces.",
+                 "exactly(flat, 3, Structure)", ["flat"]),
+    "SAME_AMOUNT": ("A structure must contain same amount of blue pieces and red pieces.",
+                   "same_amount(blue, red, Structure)", ["blue", "red"]),
+    "ALL_THREE_SHAPES": ("A structure must contain pieces of all three shapes.",
+                        "all_three_shapes(Structure)", []),
+    "ALL_THREE_COLORS": ("A structure must contain pieces of all three colors.",
+                        "all_three_colors(Structure)", []),
+    "EXCLUSIVELY": ("A structure must contain exclusively upright pieces.",
+                   "exclusively(upright, Structure)", ["upright"]),
+    "ZERO_1": ("A structure must contain zero pyramid pieces.",
+              "zero(pyramid, Structure)", ["pyramid"]),
+    "ODD": ("A structure must contain an odd number of total pieces.",
+           "odd_number_of(Structure)", []),
+    "EVEN": ("A structure must contain an even number of total pieces.",
+            "even_number_of(Structure)", []),
+    "ODD_1": ("A structure must contain an odd number of doorstop pieces.",
+             "odd_number_of(doorstop, Structure)", ["doorstop"]),
+}
+
+# (predicate_a, predicate_b, combiner, rule_text, checks_a, checks_b, attrs)
+HARDCODED_PAIRED_SEEDS: list[tuple[str, str, str, str, str, str, list[str]]] = [
+    ("AT_LEAST_1", "ODD_1", "or",
+     "A structure must contain at least 3 block pieces or an odd number of flat pieces.",
+     "at_least(block, 3, Structure)", "odd_number_of(flat, Structure)", ["block", "flat"]),
+    ("AT_LEAST_1", "EXACTLY_1", "and",
+     "A structure must contain at least 3 red pieces and exactly 1 pyramid pieces.",
+     "at_least(red, 3, Structure)", "exactly(pyramid, 1, Structure)", ["red", "pyramid"]),
+]
+
+
+def generate_curriculum_rules(rules_json_file: str = 'rules/zendo_rules.json', prolog_file: str = 'rules/rules.pl',
+                              per_predicate: int = 4, num_and: int = 6, num_or: int = 5,
+                              seed: int | None = None, timeout: int = 6):
+    """
+    Generates the full curriculum rule set: `per_predicate` single-clause instances of each
+    of the 22 predicate identities (seeded with the corresponding HARDCODED_SINGLE_SEEDS entry
+    where one exists, topped up with freshly generated instances), plus `num_and` + `num_or`
+    two-predicate "and"/"or" combinations (seeded with HARDCODED_PAIRED_SEEDS, topped up with a
+    fresh random matching over whichever predicates aren't already spent by those seeds) so
+    each identity appears (at least) once across the combinations.
+
+    COLOR/SHAPE/ORIENTATION values are drawn via a usage-balanced picker shared across the
+    whole run (see make_balanced_attribute_picker), pre-seeded with the hardcoded rules'
+    attribute usage, so the aggregate distribution stays even instead of skewing toward
+    whatever a purely uniform random choice happens to favor.
+
+    :param rules_json_file: The path to the JSON file containing placeholder rules.
+    :param prolog_file: Path to the Prolog rules file used to check realizability.
+    :param per_predicate: How many single-clause instances to generate per predicate identity.
+    :param num_and: How many predicate pairs to combine with "and" (including hardcoded ones).
+    :param num_or: How many predicate pairs to combine with "or" (including hardcoded ones).
+    :param seed: Optional random seed for reproducibility.
+    :param timeout: Maximum number of seconds to allow each realizability check to run.
+    :return: A tuple (single_entries, paired_entries).
+        single_entries: list of (predicate_name, rule, query, n_query).
+        paired_entries: list of (predicate_a, predicate_b, combiner, rule, query, n_query),
+            where rule/query/n_query are None if no realizable combination was found.
+    """
+
+    if seed is not None:
+        random.seed(seed)
+
+    rules = load_json_rules(rules_json_file)
+    starting_template = template_from_text(rules, "A structure must contain QUANTITY.")
+    predicate_index = build_predicate_template_index(rules)
+    predicate_names = list(predicate_index.keys())
+
+    usage_counts: dict[str, int] = {}
+    attribute_pick_fn = make_balanced_attribute_picker(usage_counts)
+
+    def record_usage(attrs: list[str]):
+        for attr in attrs:
+            usage_counts[attr] = usage_counts.get(attr, 0) + 1
+
+    # Seed the paired section first, so its predicates can be excluded from the fresh matching.
+    paired_entries = []
+    pairs_used_predicates = set()
+    for predicate_a, predicate_b, combiner, rule_text, checks_a, checks_b, attrs in HARDCODED_PAIRED_SEEDS:
+        record_usage(attrs)
+        combined_inner = f"{combiner}([{checks_a}, {checks_b}])"
+        query = f"generate_valid_structure([{combined_inner}], Structure)"
+        n_query = f"generate_invalid_structure([{combined_inner}], Structure)"
+        paired_entries.append((predicate_a, predicate_b, combiner, rule_text, query, n_query))
+        pairs_used_predicates.add(predicate_a)
+        pairs_used_predicates.add(predicate_b)
+
+    # Seed the single-predicate buckets, topping each up to per_predicate with fresh instances.
+    single_entries = []
+    for name in predicate_names:
+        instances = []
+        if name in HARDCODED_SINGLE_SEEDS:
+            rule_text, checks, attrs = HARDCODED_SINGLE_SEEDS[name]
+            record_usage(attrs)
+            query = f"generate_valid_structure([{checks}], Structure)"
+            n_query = f"generate_invalid_structure([{checks}], Structure)"
+            instances.append((rule_text, query, n_query))
+        remaining = per_predicate - len(instances)
+        if remaining > 0:
+            already_used = {query for _, query, _ in instances}
+            instances += generate_predicate_instances(rules, predicate_index[name], starting_template, prolog_file,
+                                                       count=remaining, timeout=timeout,
+                                                       attribute_pick_fn=attribute_pick_fn,
+                                                       already_used_queries=already_used)
+        for rule_text, query, n_query in instances[:per_predicate]:
+            single_entries.append((name, rule_text, query, n_query))
+
+    # Fresh perfect matching for the remaining pairs, excluding predicates already spent above.
+    # An odd leftover count (from the hardcoded pairs reusing a predicate) means one predicate
+    # is randomly left out of the paired section entirely - see the module docstring above.
+    remaining_names = [n for n in predicate_names if n not in pairs_used_predicates]
+    random.shuffle(remaining_names)
+    if len(remaining_names) % 2 == 1:
+        remaining_names = remaining_names[:-1]
+    fresh_pairs = [(remaining_names[i], remaining_names[i + 1]) for i in range(0, len(remaining_names), 2)]
+    # EVEN and ODD (the "total pieces" variants) are always mutually exclusive with no
+    # attribute to vary on either side, unlike e.g. EVEN_1/ODD_1 (which can still succeed by
+    # drawing different attributes) - so if the matching happens to pair them, reshuffle rather
+    # than burning retries on a combination that can never succeed.
+    reshuffle_attempts = 0
+    while any({a, b} == {"EVEN", "ODD"} for a, b in fresh_pairs) and reshuffle_attempts < 20:
+        reshuffle_attempts += 1
+        random.shuffle(remaining_names)
+        fresh_pairs = [(remaining_names[i], remaining_names[i + 1]) for i in range(0, len(remaining_names), 2)]
+    random.shuffle(fresh_pairs)
+
+    num_and_remaining = num_and - sum(1 for e in paired_entries if e[2] == "and")
+    num_or_remaining = num_or - sum(1 for e in paired_entries if e[2] == "or")
+    combiners = ["and"] * num_and_remaining + ["or"] * num_or_remaining
+    random.shuffle(combiners)
+
+    for (predicate_a, predicate_b), combiner in zip(fresh_pairs, combiners):
+        result = generate_paired_instance(rules, predicate_index[predicate_a], predicate_index[predicate_b],
+                                          combiner, starting_template, prolog_file, timeout=timeout,
+                                          attribute_pick_fn=attribute_pick_fn)
+        if result is None:
+            paired_entries.append((predicate_a, predicate_b, combiner, None, None, None))
+        else:
+            rule_text, query, n_query = result
+            paired_entries.append((predicate_a, predicate_b, combiner, rule_text, query, n_query))
+
+    return single_entries, paired_entries
 
 
 def generate_rule(rules_json_file='rules/zendo_rules.json'):

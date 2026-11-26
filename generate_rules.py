@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argparse import Namespace
 import yaml
-from rules.rules import generate_rule
+from rules.rules import generate_valid_rule
 from zendo_objects import *
 import utils
 
@@ -23,18 +23,31 @@ def main(args):
     #######################################################
 
     rules_json_file = args.rules_json_file
+    rules_prolog_file = getattr(args, "rules_prolog_file", "rules/rules.pl")
     num_rules = args.num_rules
     rules = []
     queries = []
     queries_n = []
-    while len(rules) < num_rules:
-        # get rule in string form and query, negative query in prolog form
-        rule, query, n_query = generate_rule(rules_json_file)
-        if "Error" not in rule and "more upright than vertical" not in rule and "more upside_down than vertical" not in rule \
-            and "more doorstop than flat" not in rule and "more cheesecake than flat" not in rule:
-            rules.append(rule)
-            queries.append(query)
-            queries_n.append(n_query)
+
+    # Each slot draws random rules and verifies (via generate_valid_rule) that they can
+    # actually be realized by some structure before accepting one, so a rule that reads
+    # fine as text but is logically impossible (e.g. "more upright pieces than vertical
+    # pieces", contradictory "and"-ed attribute counts, ...) gets discarded and re-drawn
+    # instead of silently ending up in the output. This bounds the outer loop so a broken
+    # rules file can't hang the script forever if a slot keeps failing.
+    max_slots = num_rules * 3
+    slots_tried = 0
+    while len(rules) < num_rules and slots_tried < max_slots:
+        slots_tried += 1
+        result = generate_valid_rule(rules_json_file, rules_prolog_file)
+        if result is None:
+            print("⚠️ Gave up on a rule slot after exhausting its retries, trying another...")
+            continue
+        rule, query, n_query, attempts_used = result
+        rules.append(rule)
+        queries.append(query)
+        queries_n.append(n_query)
+
     rules_path = os.path.join("configs", f"rules.txt")
     with open(rules_path, "w", encoding="utf-8") as f:
         for rule, query, n_query in zip(rules, queries, queries_n):
@@ -42,7 +55,10 @@ def main(args):
             f.write(f"query: '{query}'\n")
             f.write(f"query_n: '{n_query}'\n\n")
 
-    print(f"✅ Saved {num_rules} rules to {rules_path}")
+    if len(rules) < num_rules:
+        print(f"⚠️ Warning: Only generated {len(rules)}/{num_rules} realizable rules "
+              f"after {slots_tried} attempts.")
+    print(f"✅ Saved {len(rules)} rules to {rules_path}")
 
 
 if __name__ == '__main__':

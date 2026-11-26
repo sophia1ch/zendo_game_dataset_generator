@@ -360,6 +360,16 @@ def main(args):
             print(f"Generating rule {r + 1}/{num_rules}...")
             # get rule in string form and query, negative query in prolog form
             rule, query, n_query = generate_rule(rules_json_file)
+
+            # Some generated rules read fine as text but are logically impossible (e.g.
+            # "more upright pieces than vertical pieces", or contradictory "and"-ed attribute
+            # counts) and would make the Prolog query search forever. Verify a valid and an
+            # invalid structure can actually be produced before spending render time on it.
+            if not call_prolog_subprocess(1, query, args.rules_prolog_file) or \
+               not call_prolog_subprocess(1, n_query, args.rules_prolog_file):
+                print(f"Rule not realizable, skipping: {rule}")
+                continue
+
             print(f"Rule: {rule}")
             print(f"Query: {query}")
             print(f"Negative Query: {n_query}")

@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
 
-def convert_to_tensor(data, path):
+def convert_to_tensor(data, path=None):
       color_lexicon = ["red", "blue", "yellow", "PAD"]
       shape_lexicon = ["block", "wedge", "pyramid", "PAD"]
       orientation_lexicon = ["upright", "upside_down", "flat", "cheesecake", "PAD"]
@@ -48,4 +48,6 @@ def convert_to_tensor(data, path):
             vecs.append(pad_tensor)
       encoded_scene = torch.stack(vecs)
       print("Scene: ", encoded_scene)
-      torch.save(encoded_scene, Path(path))
+      if path is not None:
+            torch.save(encoded_scene, Path(path))
+      return encoded_scene
