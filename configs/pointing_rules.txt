@@ -1,0 +1,8 @@
+# Scenes that contain pointing (used to record piece rotation and pointing rays).
+rule: 'A structure must contain at least 1 flat piece pointing at a red piece.'
+query: 'generate_valid_structure([at_least_interaction(flat, red, pointing, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(flat, red, pointing, 1, Structure)], Structure)'
+
+rule: 'A structure must contain at least 1 flat piece pointing at a blue piece.'
+query: 'generate_valid_structure([at_least_interaction(flat, blue, pointing, 1, Structure)], Structure)'
+query_n: 'generate_invalid_structure([at_least_interaction(flat, blue, pointing, 1, Structure)], Structure)'
