@@ -9,7 +9,7 @@ import time
 import csv
 import subprocess
 from zendo_objects import *
-from generate import generate_structure, get_image_bounding_box
+from generate import generate_structure, get_image_bounding_box, project_point_3d_to_2d
 import utils
 from utils import debug
 import gc
@@ -155,6 +155,41 @@ def render(args, output_path, name):
     return render_duration
 
 
+POSE_COLUMNS = ["rotation_z_deg", "rotation_quat_w", "rotation_quat_x", "rotation_quat_y", "rotation_quat_z",
+                "ray_count", "ray_origin_x", "ray_origin_y", "ray_origin_z", "ray_dir_x", "ray_dir_y", "ray_dir_z",
+                "ray_img_x0", "ray_img_y0", "ray_img_x1", "ray_img_y1", "heading_deg"]
+
+
+def get_pose_and_ray(obj, scene, ray_img_length=2.0):
+    """Rotation of the piece and its mean pointing ray (the rays check_pointing casts).
+
+    rotation_z_deg: Euler Z of the full rotation (get_rotation_z_degrees). NOT the facing direction for
+    flat/cheesecake/doorstop poses, whose base pose already includes an X tilt; use heading_deg.
+    rotation_quat_*: full world rotation.
+    ray_origin/ray_dir: mean origin and normalised mean direction of obj.get_rays() (world).
+    ray_img_*: the ray projected to the image, from the origin to origin + ray_img_length * dir
+    (pixels, same convention as image_x_min/...). Empty if the piece has no rays.
+    heading_deg: direction of the ray in the ground plane, atan2(dir_y, dir_x) in [0, 360); empty when
+    the ray is (nearly) vertical, i.e. for pieces that cannot point.
+    """
+    q = obj.obj.rotation_quaternion
+    row = [obj.get_rotation_z_degrees(), q.w, q.x, q.y, q.z]
+    try:
+        rays = obj.get_rays()
+    except Exception:
+        rays = []
+    if not rays:
+        return row + [0] + [""] * 11
+    o = sum((r[0] for r in rays), Vector((0, 0, 0))) / len(rays)
+    d = sum((r[1] for r in rays), Vector((0, 0, 0)))
+    d = d.normalized() if d.length > 0 else d
+    cam = bpy.data.objects["Camera.001"]
+    x0, y0 = project_point_3d_to_2d(o, cam, scene)
+    x1, y1 = project_point_3d_to_2d(o + d * ray_img_length, cam, scene)
+    heading = round(math.degrees(math.atan2(d.y, d.x)), 4) % 360 if math.hypot(d.x, d.y) > 0.5 else ""
+    return row + [len(rays), o.x, o.y, o.z, d.x, d.y, d.z, x0, y0, x1, y1, heading]
+
+
 def get_all_scene_objects():
     """
     Retrieves all mesh objects in the current Blender scene that match
@@ -254,7 +289,8 @@ def generate_blender_examples(args, num_examples, rule_idx, rule, query, start_r
                     scene_name, img_path, rule, query, obj.name, obj.grounded,
                     obj.touching, obj.rays, obj.pointing,
                     min_bb.x, min_bb.y, min_bb.z, max_bb.x, max_bb.y, max_bb.z,
-                    world_pos.x, world_pos.y, world_pos.z, x_min, y_min, x_max, y_max
+                    world_pos.x, world_pos.y, world_pos.z, x_min, y_min, x_max, y_max,
+                    *get_pose_and_ray(obj, bpy.context.scene)
                 ])
 
             for obj in collection.objects:
@@ -347,7 +383,7 @@ def main(args):
                              "touching", "rays", "pointing", "bounding_box_min_x", "bounding_box_min_y",
                              "bounding_box_min_z", "bounding_box_max_x", "bounding_box_max_y",
                              "bounding_box_max_z", "world_pos_x", "world_pos_y", "world_pos_z",
-                             "image_x_min", "image_y_min", "image_x_max", "image_y_max"])
+                             "image_x_min", "image_y_min", "image_x_max", "image_y_max", *POSE_COLUMNS])
 
     total_gpu_time = 0.0
     total_cpu_time = 0.0
